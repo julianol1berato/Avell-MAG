@@ -200,6 +200,17 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
         t.tocados.borrow().len(),
         lido(W, Campo::Ponto)
     );
+    // trocar de predefinição não deixa sobra da anterior, e a zona morta mostra o valor da tecla
+    t.campo(Campo::ZonaTopo).set_value(0.35);
+    ui.usar_predef(1);
+    println!(
+        "depois de Digitação: rt ao pressionar na tela={:.2} rt={} zona do topo na tela={:.2} (na tecla={}) zonas marcadas={}",
+        t.campo(Campo::RtPress).value(),
+        t.rt.is_active(),
+        t.campo(Campo::ZonaTopo).value(),
+        lido(W, Campo::ZonaTopo),
+        t.tocados.borrow().iter().any(|c| matches!(c, Campo::ZonaTopo | Campo::ZonaFundo))
+    );
     ui.marcar(false);
     println!("limpar a seleção descarta as edições: {}", t.tocados.borrow().is_empty());
 
