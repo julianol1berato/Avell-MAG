@@ -27,15 +27,12 @@
       LEDs é desenhada em linha reta, sem saber como eles se distribuem pelas laterais do teclado.
 - [ ] Recursos do configurador oficial que ainda não existem aqui: macros e as teclas avançadas
       MPT, MT, TGL, END e RS (o DKS e o SOCD já existem).
-- [ ] DKS: o significado das sete casas de cada função (aciona no momento / segura até o seguinte)
-      segue a tela do configurador oficial; falta conferir no teclado, tecla por tecla, o que cada
-      combinação envia de fato.
-- [ ] Knob: o teclado informa uma posição do tipo knob na linha de cima (linha 0, coluna 14), sem
-      função gravada, e não anuncia o recurso "knob". O configurador oficial não tem ajuste próprio
-      para ele; falta saber se o MAG82 tem o botão giratório e o que ele envia.
+- [ ] Knob: girar envia volume + e volume -, apertar envia mudo (conferido com o teclado). O teclado
+      informa uma posição do tipo knob (linha 0, coluna 14) sem função gravada e o configurador
+      oficial não tem ajuste para ele; não se sabe se dá para trocar o que ele envia.
 - [ ] Atalhos Fn: três funções de fábrica ainda sem nome (Fn+F3 = 0xff00, Fn+W = 0xf20b,
-      Fn+Ctrl = 0xff01); aparecem como "função do teclado sem nome". Fn+F4 é mostrado como
-      "Super + D" por dedução do formato do código; falta confirmar no teclado.
+      Fn+Ctrl = 0xff01); aparecem como "função do teclado sem nome". Fn+F4 é Super + D, conferido
+      com o teclado.
 - [ ] Calibração interrompida à força (kill -9, queda de energia): o programa deixa um marcador em
       `~/.local/state/mag82/calibracao-em-andamento` e, ao abrir de novo, tira o teclado do modo de
       calibração e avisa. O que falta: não há comando conhecido para perguntar ao próprio teclado
