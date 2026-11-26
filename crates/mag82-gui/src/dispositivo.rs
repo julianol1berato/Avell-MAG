@@ -68,7 +68,7 @@ impl PainelDisp {
         linha_site.add_suffix(&gtk::Image::from_icon_name("adw-external-link-symbolic"));
         let linha_sobre = adw::ActionRow::builder()
             .title("Sobre o MAG82 para Linux")
-            .subtitle(concat!("Versão ", env!("CARGO_PKG_VERSION"), ", novidades e como contribuir"))
+            .subtitle(concat!("Versão ", env!("CARGO_PKG_VERSION"), ", código-fonte e como contribuir"))
             .activatable(true)
             .build();
         linha_sobre.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
