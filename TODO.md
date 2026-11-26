@@ -27,9 +27,10 @@
       LEDs é desenhada em linha reta, sem saber como eles se distribuem pelas laterais do teclado.
 - [ ] Recursos do configurador oficial que ainda não existem aqui: macros e as teclas avançadas
       MPT, MT, TGL, END e RS (o DKS e o SOCD já existem).
-- [ ] Knob: girar envia volume + e volume -, apertar envia mudo (conferido com o teclado). O teclado
-      informa uma posição do tipo knob (linha 0, coluna 14) sem função gravada e o configurador
-      oficial não tem ajuste para ele; não se sabe se dá para trocar o que ele envia.
+- [ ] Knob: girar envia volume + e volume -, apertar envia mudo. Não dá para trocar pelo layout:
+      o teclado informa uma posição do tipo knob (linha 0, coluna 14), mas gravar uma tecla nela
+      não muda o que o knob envia (conferido com o teclado). O configurador oficial também não
+      tem ajuste para ele.
 - [ ] Atalhos Fn: duas funções de fábrica sem efeito conhecido (Fn+W = 0xf20b e Fn+Ctrl = 0xff01).
       Conferido com o teclado: não enviam tecla ao computador, não acendem nada e não mudam nada
       que se consiga ler dele (perfil, taxa, luzes, paletas, teclas, atalhos, SOCD, DKS).
