@@ -143,6 +143,19 @@ scripts/instalar-local.sh
 O script compila e instala tudo em `~/.local`, sem root.
 A regra udev é o único passo que pede senha, e só na primeira vez.
 
+## Atualizações
+
+Ao abrir, o programa confere se saiu versão nova e avisa em uma faixa no topo da janela.
+Você escolhe: **Atualizar**, **Agora não** ou **Pular esta versão**.
+
+- Instalado por `.deb` ou `.rpm`: ele baixa o pacote e chama o instalador do sistema, que pede a senha.
+- Instalado em `~/.local`: ele atualiza sozinho, sem senha.
+- Todo arquivo baixado é conferido com o SHA-256 publicado antes de instalar.
+
+A consulta vai só à página de versões do projeto no GitHub, no máximo uma vez por dia, e não envia
+nenhum dado seu.
+Não quer? Desligue em **Dispositivo → Atualizações**; aí o programa nunca acessa a internet.
+
 ## Linha de comando
 
 Tudo o que a interface faz também está no terminal:
@@ -203,6 +216,7 @@ O [CONTRIBUTING.md](CONTRIBUTING.md) explica o caminho, do fork ao merge.
 cargo test                 # não precisa do teclado
 packaging/deb.sh           # gera dist/mag82_*.deb
 packaging/rpm.sh           # gera dist/mag82-*.rpm (precisa de rpmbuild)
+packaging/tar.sh           # gera dist/mag82-*.tar.gz (atualização das instalações em ~/.local)
 scripts/teste-fumaca.sh    # confere um pacote instalado, sem teclado
 ```
 

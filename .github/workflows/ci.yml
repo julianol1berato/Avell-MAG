@@ -50,10 +50,14 @@ jobs:
         run: sudo apt-get install -y ./dist/*.deb xvfb dbus desktop-file-utils
       - name: Teste de fumaça como usuário comum
         run: scripts/teste-fumaca.sh
+      - name: Gerar o .tar.gz (atualização das instalações em ~/.local)
+        run: packaging/tar.sh
       - uses: actions/upload-artifact@v4
         with:
           name: deb
-          path: dist/*.deb
+          path: |
+            dist/*.deb
+            dist/*.tar.gz
 
   rpm:
     name: Pacote .rpm (Fedora)

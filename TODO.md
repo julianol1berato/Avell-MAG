@@ -10,6 +10,15 @@
       já exista entre A e D e a cor fixa de W). Mover para um binário ou feature de teste e criar um
       teclado falso na biblioteca (transporte abstrato) para testar GUI e CLI sem hardware.
 
+## Atualização do programa
+
+- [ ] A instalação da versão nova por `.deb` e `.rpm` (via `pkexec`) nunca foi exercitada de ponta a
+      ponta; só o caminho de `~/.local` foi testado com uma versão simulada.
+- [ ] Repositório APT/DNF assinado, para o próprio sistema trazer as versões novas sem o programa
+      precisar baixar nada.
+- [ ] O `.rpm` de cada versão é feito no Fedora mais recente; em um Fedora mais antigo a atualização
+      pode ser recusada pelo `dnf` por causa das dependências.
+
 ## Encontrado durante a revisão, ainda não feito
 
 - [ ] Seleção por arrasto e atalhos (Ctrl+A, Esc, F5) não têm teste automático: o autoteste não
