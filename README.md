@@ -129,7 +129,7 @@ Duas coisas que vale saber:
 - Se o teclado já estava conectado e o programa reclamar de permissão, tire e ponha o cabo.
 
 Requisitos: GTK 4.12 e libadwaita 1.5 ou mais novos.
-Na prática: Ubuntu 24.04, Debian 13 e Fedora 40 em diante.
+Na prática: Ubuntu 24.04, Debian 13 e Fedora 43 em diante.
 
 ### A partir do código
 

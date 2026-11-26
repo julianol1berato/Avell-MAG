@@ -59,17 +59,18 @@ jobs:
             dist/*.deb
             dist/*.tar.gz
 
+  # O .rpm é compilado no Fedora mais antigo ainda mantido: um pacote feito lá instala nos mais
+  # novos, e o contrário não vale. O trabalho seguinte confere isso instalando nos outros.
   rpm:
-    name: Pacote .rpm (Fedora)
+    name: Pacote .rpm (Fedora 43)
     runs-on: ubuntu-24.04
     needs: testes
-    container: fedora:latest
+    container: fedora:43
     steps:
       - name: Dependências
         run: |
           dnf install -y git tar gzip rpm-build cargo rust gcc gtk4-devel libadwaita-devel \
-            systemd-rpm-macros desktop-file-utils xorg-x11-server-Xvfb xauth dbus-daemon mesa-dri-drivers \
-            util-linux sudo
+            systemd-rpm-macros desktop-file-utils
       - uses: actions/checkout@v4
       - name: Gerar o .rpm (compila e roda os testes)
         run: packaging/rpm.sh
@@ -78,6 +79,30 @@ jobs:
           rpm -qip dist/*.rpm
           rpm -qlp dist/*.rpm
           rpm -qp --requires dist/*.rpm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: dist/*.rpm
+
+  rpm-instala:
+    name: Instalar o .rpm (Fedora ${{ matrix.fedora }})
+    runs-on: ubuntu-24.04
+    needs: rpm
+    strategy:
+      fail-fast: false
+      matrix:
+        fedora: ["43", "44", "latest"]
+    container: fedora:${{ matrix.fedora }}
+    steps:
+      - name: Dependências do teste
+        run: |
+          dnf install -y git desktop-file-utils xorg-x11-server-Xvfb xauth dbus-daemon mesa-dri-drivers \
+            util-linux sudo
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: rpm
+          path: dist
       - name: Instalar o pacote
         run: dnf install -y ./dist/*.rpm
       - name: Teste de fumaça como usuário comum
@@ -85,15 +110,11 @@ jobs:
           useradd -m usuario
           cp scripts/teste-fumaca.sh /tmp/teste-fumaca.sh && chmod 755 /tmp/teste-fumaca.sh
           runuser -u usuario -- bash -c 'cd ~ && /tmp/teste-fumaca.sh'
-      - uses: actions/upload-artifact@v4
-        with:
-          name: rpm
-          path: dist/*.rpm
 
   versao:
     name: Publicar a versão
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [deb, rpm]
+    needs: [deb, rpm, rpm-instala]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

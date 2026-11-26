@@ -16,8 +16,6 @@
       ponta; só o caminho de `~/.local` foi testado com uma versão simulada.
 - [ ] Repositório APT/DNF assinado, para o próprio sistema trazer as versões novas sem o programa
       precisar baixar nada.
-- [ ] O `.rpm` de cada versão é feito no Fedora mais recente; em um Fedora mais antigo a atualização
-      pode ser recusada pelo `dnf` por causa das dependências.
 
 ## Encontrado durante a revisão, ainda não feito
 
