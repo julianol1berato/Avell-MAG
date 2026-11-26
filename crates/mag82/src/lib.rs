@@ -1281,6 +1281,10 @@ pub const ESPECIAIS: &[Especial] = &[
     esp(0xF201, "Mudar para o layout Windows (segurando a tecla)", "Win", Familia::Reservada),
     esp(0xF202, "Mudar para o layout Mac (segurando a tecla)", "Mac", Familia::Reservada),
     esp(0xF203, "Calibrar as teclas (segurando a tecla)", "Calibr.", Familia::Reservada),
+    // Vêm de fábrica em Fn+W e Fn+Ctrl. Conferido com o teclado (firmware 0.0.2.0): não enviam
+    // tecla ao computador nem mudam nada que se consiga ler do teclado.
+    esp(0xF20B, "Função de fábrica sem efeito conhecido", "?", Familia::Reservada),
+    esp(0xFF01, "Função de fábrica sem efeito conhecido", "?", Familia::Reservada),
     esp(0xF100, "Voltar para a camada principal", "Cam.0", Familia::Reservada),
     esp(0xF101, "Tecla Fn", "Fn", Familia::Reservada),
     esp(0xF102, "Mudar para a 2ª camada", "Cam.2", Familia::Reservada),

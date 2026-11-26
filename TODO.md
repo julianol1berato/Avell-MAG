@@ -30,10 +30,9 @@
 - [ ] Knob: girar envia volume + e volume -, apertar envia mudo (conferido com o teclado). O teclado
       informa uma posição do tipo knob (linha 0, coluna 14) sem função gravada e o configurador
       oficial não tem ajuste para ele; não se sabe se dá para trocar o que ele envia.
-- [ ] Atalhos Fn: duas funções de fábrica ainda sem nome (Fn+W = 0xf20b e Fn+Ctrl = 0xff01);
-      aparecem como "função do teclado sem nome". Nenhuma das duas envia tecla ao computador, e
-      depois de Fn+W as teclas WASD e as setas continuam normais. Fn+F3 (Alt + Tab) e Fn+F4
-      (Super + D) foram conferidos com o teclado.
+- [ ] Atalhos Fn: duas funções de fábrica sem efeito conhecido (Fn+W = 0xf20b e Fn+Ctrl = 0xff01).
+      Conferido com o teclado: não enviam tecla ao computador, não acendem nada e não mudam nada
+      que se consiga ler dele (perfil, taxa, luzes, paletas, teclas, atalhos, SOCD, DKS).
 - [ ] Calibração interrompida à força (kill -9, queda de energia): o programa deixa um marcador em
       `~/.local/state/mag82/calibracao-em-andamento` e, ao abrir de novo, tira o teclado do modo de
       calibração e avisa. O que falta: não há comando conhecido para perguntar ao próprio teclado
