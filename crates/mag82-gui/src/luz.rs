@@ -101,7 +101,7 @@ impl Controles {
     fn nomear_cores(&self, paleta: &mag82::Paleta, escolhida: u8) {
         let mut nomes = vec!["Padrão do efeito".to_string()];
         for (i, b) in self.paleta_btns.iter().enumerate() {
-            let nome = format!("Cor {}: {}", i + 1, paleta.cor(i + 1).nome());
+            let nome = format!("Cor {} - {}", i + 1, paleta.cor(i + 1).nome());
             b.set_tooltip_text(Some(&nome));
             nomes.push(nome);
         }
