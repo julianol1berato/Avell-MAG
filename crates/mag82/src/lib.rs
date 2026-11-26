@@ -529,6 +529,26 @@ impl Teclado {
 
     fn gravar_grade(&mut self, area: u8, g: &Grade) -> Resultado<()> {
         let paginas = g.bruto.len().div_ceil(Grade::BYTES_PAGINA);
+        // No modo "só as cores fixas" o teclado ignora o pedido de soltar uma cor: a posição
+        // continua fixa. Fora desse modo ele aceita, então a gravação passa por outro efeito por
+        // um instante e volta.
+        let mut atual = self.ler_grade(area, paginas)?;
+        atual.bruto.truncate(g.bruto.len());
+        let solta = atual.bruto.chunks(4).zip(g.bruto.chunks(4)).any(|(antes, depois)| antes[3] == 255 && depois[3] != 255);
+        if solta {
+            let luz = self.luz_de(area)?;
+            let efeitos = self.areas_luz()?.iter().find(|a| a.indice == area).map_or(EFEITOS, |a| a.efeitos);
+            if efeitos > 1 && luz.modo + 1 == efeitos {
+                self.definir_luz_de(area, efeitos, &Luz { modo: 0, ..luz })?;
+                let gravou = self.gravar_grade_direto(area, g, paginas);
+                self.definir_luz_de(area, efeitos, &luz)?;
+                return gravou;
+            }
+        }
+        self.gravar_grade_direto(area, g, paginas)
+    }
+
+    fn gravar_grade_direto(&mut self, area: u8, g: &Grade, paginas: usize) -> Resultado<()> {
         for (pagina, bloco) in g.bruto.chunks(Grade::BYTES_PAGINA).enumerate() {
             let mut dados = vec![grupo::LIGHTING, 4, area, pagina as u8];
             dados.extend_from_slice(bloco);
@@ -832,6 +852,27 @@ impl ModoSocd {
     }
 }
 
+/// De que lado do teclado fica um LED da luz lateral.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Lado {
+    Esquerdo,
+    Direito,
+}
+
+/// Onde fica o LED `i` (a partir de 0) de uma luz lateral de `total` LEDs: o lado e a altura,
+/// de 0 (em cima, na linha do Esc) a 1 (embaixo, na linha do Ctrl).
+///
+/// Conferido no MAG82, que tem 30: os LEDs sobem pela lateral esquerda (o 1 perto do Ctrl, o 15
+/// perto do Esc) e descem pela direita (o 16 perto do knob, o 30 perto da seta para a direita).
+pub fn posicao_do_led_lateral(i: usize, total: usize) -> (Lado, f64) {
+    let metade = total.div_ceil(2).max(1);
+    if i < metade {
+        (Lado::Esquerdo, 1.0 - (i as f64 + 0.5) / metade as f64)
+    } else {
+        (Lado::Direito, ((i - metade) as f64 + 0.5) / (total - metade).max(1) as f64)
+    }
+}
+
 /// Uma área de luz, como o teclado a descreve.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AreaLuz {
@@ -975,7 +1016,7 @@ impl Grade {
         let Some(c) = self.bruto.get_mut(4 * led..4 * led + 4) else { return };
         match cor {
             Some(cor) => c.copy_from_slice(&[cor.2, cor.1, cor.0, 255]),
-            None => c[3] = 0,
+            None => c.fill(0),
         }
     }
 
@@ -1001,7 +1042,9 @@ impl Grade {
         let i = Self::indice(pos);
         match cor {
             Some(c) => self.bruto[i..i + 4].copy_from_slice(&[c.2, c.1, c.0, 255]),
-            None => self.bruto[i + 3] = 0,
+            // apaga a cor junto com a marca: no modo "só as cores fixas" o teclado volta a marcar
+            // como fixa qualquer posição gravada com cor
+            None => self.bruto[i..i + 4].fill(0),
         }
     }
 }
@@ -1362,6 +1405,26 @@ mod testes_dks {
         assert!(d.validar().is_err(), "início depois do fundo");
         d.inicio = 50;
         assert!(d.validar().is_err(), "distância fora da faixa");
+    }
+}
+
+#[cfg(test)]
+mod testes_lateral {
+    use super::{posicao_do_led_lateral, Lado};
+
+    #[test]
+    fn leds_sobem_pela_esquerda_e_descem_pela_direita() {
+        let (lado, altura) = posicao_do_led_lateral(0, 30);
+        assert!(lado == Lado::Esquerdo && altura > 0.9, "LED 1: embaixo, à esquerda");
+        let (lado, altura) = posicao_do_led_lateral(14, 30);
+        assert!(lado == Lado::Esquerdo && altura < 0.1, "LED 15: em cima, à esquerda");
+        let (lado, altura) = posicao_do_led_lateral(15, 30);
+        assert!(lado == Lado::Direito && altura < 0.1, "LED 16: em cima, à direita");
+        let (lado, altura) = posicao_do_led_lateral(29, 30);
+        assert!(lado == Lado::Direito && altura > 0.9, "LED 30: embaixo, à direita");
+        // LED 7 na altura do Caps Lock e LED 24 na do PgUp: as duas no meio do teclado
+        assert!((posicao_do_led_lateral(6, 30).1 - 0.57).abs() < 0.02);
+        assert!((posicao_do_led_lateral(23, 30).1 - 0.57).abs() < 0.02);
     }
 }
 
