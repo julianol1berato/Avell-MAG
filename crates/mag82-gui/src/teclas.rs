@@ -14,7 +14,7 @@ use crate::ui::Ui;
 use crate::util::{botao, botao_cor, de_rgba, descrever_funcao, mm, para_rgba, rolavel, rotulo, rotulo_funcao, rotulo_longo};
 
 /// Tamanho de uma tecla, em pixels: acompanha o tamanho da janela, dentro destes limites.
-const U_MIN: f64 = 22.0;
+const U_MIN: f64 = 18.0;
 const U_MAX: f64 = 64.0;
 const U_PADRAO: f64 = 50.0;
 /// Espaço entre teclas, em pixels.
@@ -22,7 +22,9 @@ const FOLGA: f64 = 4.0;
 /// Fração da altura da página que o desenho do teclado pode ocupar.
 const ALTURA_TECLADO: f64 = 0.42;
 /// Abaixo desta largura de página, a linha de modos e seleção se divide em duas.
-const LARGURA_ESTREITA: i32 = 860;
+const LARGURA_ESTREITA: i32 = 960;
+/// Abaixo desta largura os títulos dos modos encurtam para o seletor caber.
+const LARGURA_TITULOS: i32 = 700;
 /// Abaixo desta largura a legenda das marcas não cabe em uma linha e é escondida.
 const LARGURA_LEGENDA: i32 = 760;
 /// Abaixo deste tamanho de tecla não cabe a segunda linha de texto.
@@ -113,6 +115,18 @@ impl Modo {
             Modo::Remapear => "Remapear",
             Modo::Fn => "Atalhos Fn",
             Modo::Cor => "Cor fixa",
+            Modo::Socd => "SOCD",
+            Modo::Dks => "DKS",
+        }
+    }
+
+    /// Título que cabe no seletor quando a janela é estreita.
+    fn titulo_curto(self) -> &'static str {
+        match self {
+            Modo::Atuacao => "Atuação",
+            Modo::Remapear => "Remap.",
+            Modo::Fn => "Fn",
+            Modo::Cor => "Cor",
             Modo::Socd => "SOCD",
             Modo::Dks => "DKS",
         }
@@ -608,6 +622,15 @@ impl Ui {
         let (largura, altura) = t.tamanho.get();
         let estreita = largura > 0 && largura < LARGURA_ESTREITA;
         t.linha_sel.set_orientation(if estreita { gtk::Orientation::Vertical } else { gtk::Orientation::Horizontal });
+        // seis modos por extenso não cabem na janela mínima: lá os títulos encurtam
+        for (modo, botao) in &t.modo_btns {
+            let curto = largura > 0 && largura < LARGURA_TITULOS;
+            let titulo = if curto { modo.titulo_curto() } else { modo.titulo() };
+            if botao.label().as_deref() != Some(titulo) {
+                botao.set_label(titulo);
+                botao.set_tooltip_text(curto.then_some(modo.titulo()));
+            }
+        }
         t.legenda.set_visible(largura == 0 || largura >= LARGURA_LEGENDA);
 
         let dados = self.d.borrow();
