@@ -1276,6 +1276,7 @@ pub const ESPECIAIS: &[Especial] = &[
     esp(0xF207, "Mudar para o perfil 3", "Perf.3", Familia::Teclado),
     esp(0xF208, "Mudar para o perfil 4", "Perf.4", Familia::Teclado),
     esp(0xF209, "Bloquear a tecla Super (Windows)", "Trava", Familia::Teclado),
+    esp(0xFF00, "Alternar entre janelas (Alt + Tab)", "Alt+Tab", Familia::Teclado),
     esp(0xF200, "Restaurar o teclado de fábrica (segurando a tecla)", "Reset", Familia::Reservada),
     esp(0xF201, "Mudar para o layout Windows (segurando a tecla)", "Win", Familia::Reservada),
     esp(0xF202, "Mudar para o layout Mac (segurando a tecla)", "Mac", Familia::Reservada),
