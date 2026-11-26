@@ -423,6 +423,41 @@ fn agora() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
+/// Os itens da primeira lista das notas da versão, como (nome, explicação). Um item escrito
+/// "**Nome:** explicação" vira os dois campos; sem o destaque, o texto todo fica no nome.
+/// A lista acaba no título seguinte: o que vem depois (como instalar) não é novidade.
+pub fn novidades(notas: &str) -> Vec<(String, String)> {
+    let limpar = |t: &str| {
+        // a explicação vem depois de dois-pontos, em minúscula; sozinha na linha, começa com
+        // maiúscula, a não ser que comece por um comando (entre crases), que se escreve como é
+        let comando = t.trim().starts_with('`');
+        let t = t.replace("**", "").replace('`', "");
+        let mut letras = t.trim().chars();
+        match letras.next() {
+            Some(primeira) if !comando => primeira.to_uppercase().chain(letras).collect(),
+            _ => t.trim().to_string(),
+        }
+    };
+    let mut itens = Vec::new();
+    for linha in notas.lines().map(str::trim) {
+        let Some(item) = linha.strip_prefix("- ").or_else(|| linha.strip_prefix("* ")) else {
+            if linha.starts_with('#') && !itens.is_empty() {
+                break;
+            }
+            continue;
+        };
+        let destaque = item.strip_prefix("**").and_then(|resto| resto.split_once("**"));
+        itens.push(match destaque {
+            Some((nome, texto)) => (limpar(nome.trim_end_matches(':')), limpar(texto.trim_start_matches(':'))),
+            None => (limpar(item), String::new()),
+        });
+        if itens.len() == 6 {
+            break;
+        }
+    }
+    itens
+}
+
 /// As notas da versão em texto corrido, sem as marcas de formatação, e em tamanho de diálogo.
 pub fn resumir_notas(notas: &str) -> String {
     let limpo: String = notas.chars().filter(|c| !matches!(c, '#' | '*' | '`' | '\r')).collect();
@@ -529,52 +564,136 @@ impl Ui {
         });
     }
 
-    /// O diálogo com as novidades e a escolha: atualizar, deixar para depois ou pular a versão.
+    /// A janela com as novidades e a escolha: atualizar, deixar para depois ou pular a versão.
     fn oferecer_atualizacao(self: &Rc<Self>) {
         let Some(versao) = self.versao_nova.borrow().clone() else { return };
         let tipo = esta_instalacao().1;
         let pacote = tipo.pacote(&versao).cloned();
-        let como = match (tipo, &pacote) {
-            (Instalacao::Deb | Instalacao::Rpm, Some(_)) => {
-                "O programa baixa o pacote, confere e chama o instalador do sistema, que pede a senha de administrador."
-            }
+        let (icone_como, como) = match (tipo, &pacote) {
+            (Instalacao::Deb | Instalacao::Rpm, Some(_)) => (
+                "dialog-password-symbolic",
+                "O instalador do sistema vai pedir a senha de administrador.",
+            ),
             (Instalacao::Local, Some(_)) => {
-                "O programa baixa a versão nova, confere e atualiza a instalação em ~/.local, sem pedir senha."
+                ("object-select-symbolic", "A instalação em ~/.local é atualizada sem pedir senha.")
             }
-            _ => "Esta instalação não pode ser atualizada pelo programa; baixe a versão nova na página do projeto.",
+            _ => (
+                "dialog-information-symbolic",
+                "Esta instalação não é atualizada pelo programa. Baixe a versão nova na página do projeto.",
+            ),
         };
-        let notas = resumir_notas(&versao.notas);
-        let corpo = if notas.is_empty() { como.to_string() } else { format!("{notas}\n\n{como}") };
-        let dialogo = adw::AlertDialog::builder()
-            .heading(format!("Versão {} disponível", versao.numero))
-            .body(corpo)
-            .close_response("depois")
+
+        // ----- cabeçalho: ícone, versão nova e a que está instalada -----
+        let icone = gtk::Image::builder().icon_name("io.github.mag82linux").pixel_size(96).build();
+        let titulo = gtk::Label::builder()
+            .label(format!("Versão {}", versao.numero))
+            .css_classes(["title-1"])
             .build();
-        dialogo.add_responses(&[("depois", "Agora não"), ("pular", "Pular esta versão")]);
-        if pacote.is_some() {
-            dialogo.add_response("atualizar", "Atualizar");
-            dialogo.set_response_appearance("atualizar", adw::ResponseAppearance::Suggested);
-            dialogo.set_default_response(Some("atualizar"));
+        let instalada = gtk::Label::builder()
+            .label(format!("Você está usando a {VERSAO_ATUAL}"))
+            .css_classes(["dim-label"])
+            .build();
+        let cabecalho = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(6).build();
+        cabecalho.append(&icone);
+        cabecalho.append(&titulo);
+        cabecalho.append(&instalada);
+
+        let corpo = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(24)
+            .margin_top(6)
+            .margin_bottom(24)
+            .margin_start(24)
+            .margin_end(24)
+            .build();
+        corpo.append(&cabecalho);
+
+        // ----- novidades: uma linha por item das notas da versão -----
+        let itens = novidades(&versao.notas);
+        if !itens.is_empty() {
+            let grupo = adw::PreferencesGroup::builder().title("Novidades").build();
+            for (nome, texto) in &itens {
+                let linha = adw::ActionRow::builder()
+                    .title(glib::markup_escape_text(nome))
+                    .subtitle(glib::markup_escape_text(texto))
+                    .title_lines(0)
+                    .subtitle_lines(0)
+                    .build();
+                grupo.add(&linha);
+            }
+            corpo.append(&grupo);
         } else {
-            dialogo.add_response("pagina", "Abrir a página");
-            dialogo.set_default_response(Some("pagina"));
+            let resumo = resumir_notas(&versao.notas);
+            if !resumo.is_empty() {
+                let texto = gtk::Label::builder().label(resumo).wrap(true).xalign(0.0).build();
+                corpo.append(&texto);
+            }
         }
-        let ui = self.clone();
-        dialogo.connect_response(None, move |_, resposta| match resposta {
-            "atualizar" => {
-                if let Some(pacote) = pacote.clone() {
-                    ui.atualizar(versao.clone(), pacote);
-                }
+
+        // ----- como a atualização acontece nesta instalação -----
+        let nota = gtk::Box::builder().spacing(10).halign(gtk::Align::Center).build();
+        nota.append(&gtk::Image::builder().icon_name(icone_como).css_classes(["dim-label"]).build());
+        nota.append(
+            &gtk::Label::builder().label(como).wrap(true).xalign(0.0).css_classes(["dim-label", "caption"]).build(),
+        );
+        corpo.append(&nota);
+
+        // ----- ações: a principal à direita, a de recusar a versão separada à esquerda -----
+        let pular = gtk::Button::builder().label("Pular esta versão").css_classes(["flat"]).build();
+        let depois = gtk::Button::builder().label("Agora não").build();
+        let principal = gtk::Button::builder()
+            .label(if pacote.is_some() { "Atualizar" } else { "Abrir a página" })
+            .css_classes(["suggested-action"])
+            .build();
+        let acoes = gtk::CenterBox::builder()
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(18)
+            .margin_end(18)
+            .build();
+        let direita = gtk::Box::builder().spacing(8).build();
+        direita.append(&depois);
+        direita.append(&principal);
+        acoes.set_start_widget(Some(&pular));
+        acoes.set_end_widget(Some(&direita));
+
+        let rolagem = gtk::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk::PolicyType::Never)
+            .propagate_natural_height(true)
+            .child(&corpo)
+            .build();
+        let visao = adw::ToolbarView::new();
+        visao.add_top_bar(&adw::HeaderBar::builder().show_title(false).build());
+        visao.set_content(Some(&rolagem));
+        visao.add_bottom_bar(&acoes);
+        let dialogo = adw::Dialog::builder()
+            .title("Atualização disponível")
+            .content_width(520)
+            .child(&visao)
+            .default_widget(&principal)
+            .focus_widget(&principal)
+            .build();
+
+        let d = dialogo.clone();
+        depois.connect_clicked(move |_| {
+            d.close();
+        });
+        let (d, ui, numero) = (dialogo.clone(), self.clone(), versao.numero.clone());
+        pular.connect_clicked(move |_| {
+            let mut config = Config::ler();
+            config.pular = numero.clone();
+            config.gravar();
+            ui.faixa_atualizacao.set_revealed(false);
+            ui.fase_atualizacao.set(Fase::Nada);
+            d.close();
+        });
+        let (d, ui) = (dialogo.clone(), self.clone());
+        principal.connect_clicked(move |_| {
+            d.close();
+            match pacote.clone() {
+                Some(pacote) => ui.atualizar(versao.clone(), pacote),
+                None => ui.abrir_pagina(&versao.pagina),
             }
-            "pagina" => ui.abrir_pagina(&versao.pagina),
-            "pular" => {
-                let mut config = Config::ler();
-                config.pular = versao.numero.clone();
-                config.gravar();
-                ui.faixa_atualizacao.set_revealed(false);
-                ui.fase_atualizacao.set(Fase::Nada);
-            }
-            _ => {}
         });
         dialogo.present(Some(&self.janela));
     }
@@ -798,6 +917,22 @@ mod testes {
         assert!(c.deve_consultar(1_000_000 + 60));
         c.atualizacoes = false;
         assert!(!c.deve_consultar(9_000_000));
+    }
+
+    #[test]
+    fn separa_as_novidades() {
+        let notas = "## Novidades\n\n- **Atualizações:** o programa avisa.\n- **Abas**: Teclas e `Lateral`.\n* Item simples\n\n## Instalar\n\n- não é novidade\n";
+        assert_eq!(
+            novidades(notas),
+            vec![
+                ("Atualizações".to_string(), "O programa avisa.".to_string()),
+                ("Abas".to_string(), "Teclas e Lateral.".to_string()),
+                ("Item simples".to_string(), String::new()),
+            ]
+        );
+        assert_eq!(novidades("- **Terminal:** `mag82 paleta` mostra")[0].1, "mag82 paleta mostra");
+        assert!(novidades("Só um parágrafo, sem lista.").is_empty());
+        assert_eq!(novidades(&"- a\n".repeat(20)).len(), 6);
     }
 
     #[test]
