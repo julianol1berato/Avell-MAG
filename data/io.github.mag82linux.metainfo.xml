@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.mag82linux</id>
+  <name>MAG82</name>
+  <summary>Configuração do teclado Avell Volcano's MAG82</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.julianol1berato">
+    <name>Juliano Liberato</name>
+  </developer>
+  <description>
+    <p>Configura o teclado magnético Avell Volcano's MAG82 no Linux: ponto de atuação e Rapid Trigger por tecla,
+      remapeamento, SOCD, cores fixas, efeitos de luz das teclas e da faixa lateral, perfis, taxa de resposta e
+      calibração.</p>
+    <p>Projeto independente, sem vínculo com a Avell. Feito por Juliano Liberato (9level.com.br).</p>
+  </description>
+  <launchable type="desktop-id">io.github.mag82linux.desktop</launchable>
+  <url type="homepage">https://github.com/julianol1berato/Avell-MAG</url>
+  <url type="vcs-browser">https://github.com/julianol1berato/Avell-MAG</url>
+  <url type="contact">https://9level.com.br</url>
+  <url type="bugtracker">https://github.com/julianol1berato/Avell-MAG/issues</url>
+  <provides>
+    <binary>mag82-gui</binary>
+    <binary>mag82</binary>
+    <modalias>usb:v1CA6p3920d*</modalias>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-26"/>
+  </releases>
+</component>

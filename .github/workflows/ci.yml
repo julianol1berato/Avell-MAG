@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    name: Testes (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependências
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Compilar
+        run: cargo build --release --locked
+      - name: Testes
+        run: cargo test --release --locked
+
+  deb:
+    name: Pacote .deb (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    needs: testes
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependências
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev dpkg-dev lintian
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Gerar o .deb
+        run: packaging/deb.sh
+      - name: Conferir o pacote
+        run: |
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb
+          lintian --no-tag-display-limit dist/*.deb || true
+      - name: Instalar o pacote
+        run: sudo apt-get install -y ./dist/*.deb xvfb dbus desktop-file-utils
+      - name: Teste de fumaça como usuário comum
+        run: scripts/teste-fumaca.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: dist/*.deb
+
+  rpm:
+    name: Pacote .rpm (Fedora)
+    runs-on: ubuntu-24.04
+    needs: testes
+    container: fedora:latest
+    steps:
+      - name: Dependências
+        run: |
+          dnf install -y git tar gzip rpm-build cargo rust gcc gtk4-devel libadwaita-devel \
+            systemd-rpm-macros desktop-file-utils xorg-x11-server-Xvfb xauth dbus-daemon mesa-dri-drivers \
+            util-linux sudo
+      - uses: actions/checkout@v4
+      - name: Gerar o .rpm (compila e roda os testes)
+        run: packaging/rpm.sh
+      - name: Conferir o pacote
+        run: |
+          rpm -qip dist/*.rpm
+          rpm -qlp dist/*.rpm
+          rpm -qp --requires dist/*.rpm
+      - name: Instalar o pacote
+        run: dnf install -y ./dist/*.rpm
+      - name: Teste de fumaça como usuário comum
+        run: |
+          useradd -m usuario
+          cp scripts/teste-fumaca.sh /tmp/teste-fumaca.sh && chmod 755 /tmp/teste-fumaca.sh
+          runuser -u usuario -- bash -c 'cd ~ && /tmp/teste-fumaca.sh'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: dist/*.rpm
+
+  versao:
+    name: Publicar a versão
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [deb, rpm]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: pacotes
+          merge-multiple: true
+      - name: Criar a versão com os pacotes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" pacotes/* --repo "${GITHUB_REPOSITORY}" --title "${GITHUB_REF_NAME}" --generate-notes

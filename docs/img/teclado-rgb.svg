@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 778 359" width="778" height="359" role="img" aria-labelledby="t d">
+  <title id="t">Teclado MAG82 com onda RGB</title>
+  <desc id="d">Ilustração do teclado e da faixa de luz lateral com um efeito de onda colorida.</desc>
+  <defs>
+    <linearGradient id="onda" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="778" y2="140" spreadMethod="repeat"><stop offset="0.0000" stop-color="#2a3bff"/><stop offset="0.0909" stop-color="#7a22ff"/><stop offset="0.1818" stop-color="#d51cff"/><stop offset="0.2727" stop-color="#ff1f8e"/><stop offset="0.3636" stop-color="#ff2a2a"/><stop offset="0.4545" stop-color="#ff7a1a"/><stop offset="0.5455" stop-color="#ffd21a"/><stop offset="0.6364" stop-color="#b6ff1a"/><stop offset="0.7273" stop-color="#2bff3a"/><stop offset="0.8182" stop-color="#1affb0"/><stop offset="0.9091" stop-color="#1ad8ff"/><stop offset="1.0000" stop-color="#2a3bff"/></linearGradient>
+    <linearGradient id="caixa" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b2b31"/><stop offset="1" stop-color="#1b1b20"/>
+    </linearGradient>
+    <linearGradient id="brilho" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".22"/>
+    </linearGradient>
+    <clipPath id="teclas">
+      <rect x="28.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="83.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="127.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="171.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="215.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="270.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="314.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="358.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="402.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="457.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="501.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="545.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="589.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="644.5" y="26.5" width="39.0" height="39.0" rx="7"/>
+      <rect x="28.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="72.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="116.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="160.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="204.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="248.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="292.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="336.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="380.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="424.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="468.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="512.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="556.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="600.5" y="83.7" width="83.0" height="39.0" rx="7"/>
+      <rect x="710.5" y="83.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="94.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="138.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="182.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="226.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="270.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="314.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="358.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="402.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="446.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="490.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="534.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="578.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="28.5" y="127.7" width="61.0" height="39.0" rx="7"/>
+      <rect x="633.5" y="127.7" width="50.0" height="83.0" rx="7"/>
+      <rect x="710.5" y="127.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="28.5" y="171.7" width="72.0" height="39.0" rx="7"/>
+      <rect x="105.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="149.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="193.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="237.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="281.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="325.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="369.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="413.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="457.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="501.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="545.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="589.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="710.5" y="171.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="28.5" y="215.7" width="50.0" height="39.0" rx="7"/>
+      <rect x="83.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="127.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="171.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="215.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="259.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="303.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="347.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="391.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="435.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="479.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="523.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="567.5" y="215.7" width="72.0" height="39.0" rx="7"/>
+      <rect x="655.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="710.5" y="215.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="28.5" y="259.7" width="50.0" height="39.0" rx="7"/>
+      <rect x="83.5" y="259.7" width="50.0" height="39.0" rx="7"/>
+      <rect x="138.5" y="259.7" width="50.0" height="39.0" rx="7"/>
+      <rect x="193.5" y="259.7" width="270.0" height="39.0" rx="7"/>
+      <rect x="468.5" y="259.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="512.5" y="259.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="556.5" y="259.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="611.5" y="259.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="655.5" y="259.7" width="39.0" height="39.0" rx="7"/>
+      <rect x="699.5" y="259.7" width="39.0" height="39.0" rx="7"/>
+    </clipPath>
+    <clipPath id="lateral">
+      <rect x="28.0" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="52.2" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="76.4" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="100.6" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="124.8" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="149.0" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="173.2" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="197.4" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="221.6" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="245.8" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="270.0" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="294.2" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="318.4" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="342.6" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="366.8" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="391.0" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="415.2" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="439.4" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="463.6" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="487.8" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="512.0" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="536.2" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="560.4" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="584.6" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="608.8" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="633.0" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="657.2" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="681.4" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="705.6" y="313.2" width="20.2" height="9" rx="3"/>
+      <rect x="729.8" y="313.2" width="20.2" height="9" rx="3"/>
+    </clipPath>
+    <filter id="halo" x="-10%" y="-20%" width="120%" height="140%"><feGaussianBlur stdDeviation="9"/></filter>
+  </defs>
+  <rect x="1" y="1" width="776" height="357" rx="22" fill="url(#caixa)" stroke="#55555f" stroke-width="2"/>
+  <g clip-path="url(#teclas)" filter="url(#halo)" opacity=".55">
+    <rect x="0" y="0" width="1556" height="359" fill="url(#onda)">
+      <animateTransform attributeName="transform" type="translate" from="0 0" to="-778 0" dur="7s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+  <g clip-path="url(#teclas)">
+    <rect x="0" y="0" width="1556" height="359" fill="url(#onda)">
+      <animateTransform attributeName="transform" type="translate" from="0 0" to="-778 0" dur="7s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="0" y="0" width="778" height="359" fill="url(#brilho)"/>
+  </g>
+  <g clip-path="url(#lateral)">
+    <rect x="0" y="0" width="1556" height="359" fill="url(#onda)">
+      <animateTransform attributeName="transform" type="translate" from="0 0" to="-778 0" dur="4s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+</svg>

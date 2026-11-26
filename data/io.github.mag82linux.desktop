@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=MAG82
+GenericName=Configuração do teclado
+Comment=Configura o teclado Avell Volcano's MAG82: teclas, iluminação, perfis e calibração
+Exec=mag82-gui
+Icon=io.github.mag82linux
+Terminal=false
+Categories=Settings;HardwareSettings;
+Keywords=teclado;keyboard;avell;volcano;mag82;rgb;rapid trigger;
+StartupNotify=true

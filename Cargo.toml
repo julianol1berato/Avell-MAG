@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = ["crates/mag82", "crates/mag82-cli", "crates/mag82-gui"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/julianol1berato/Avell-MAG"
+authors = ["Juliano Liberato <juliano@9level.com.br>"]
+
+[profile.release]
+lto = "thin"
+strip = true
