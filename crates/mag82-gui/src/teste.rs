@@ -21,7 +21,7 @@ pub fn iniciar(ui: Rc<Ui>, prefixo: String) {
         pausa(1200).await;
         ocioso(&ui).await;
         if ui.d.borrow().is_some() {
-            exercitar(&ui).await;
+            exercitar(&ui, &prefixo).await;
             ui.mudar_modo(Modo::Atuacao);
             ui.selecionar(&[W, A, S, D]);
             for modo in Modo::TODOS {
@@ -98,7 +98,7 @@ async fn redimensionar(ui: &Rc<Ui>, prefixo: &str) {
         pausa(500).await;
         let nome = format!("r{largura}x{altura}");
         println!("janela pedida {largura}x{altura}: ficou {}x{}", ui.janela.width(), ui.janela.height());
-        for (i, modo) in [Modo::Atuacao, Modo::Remapear, Modo::Cor, Modo::Socd].into_iter().enumerate() {
+        for (i, modo) in [Modo::Atuacao, Modo::Remapear, Modo::Cor, Modo::Socd, Modo::Dks].into_iter().enumerate() {
             // todos os modos no menor tamanho; nos outros, só a atuação (o painel mais cheio)
             if i == 0 || (largura, altura) == (LARGURA_MIN, ALTURA_MIN) {
                 ui.mudar_modo(modo);
@@ -138,7 +138,7 @@ fn retrato(ui: &Ui) -> String {
     format!("{:?} {:?} {:?} {:?} {:?} {:?} {:?} {}", d.atuacao, d.atual, d.fn_atual, d.avancada, fixas, d.luz, lateral, d.perfil_atual)
 }
 
-async fn exercitar(ui: &Rc<Ui>) {
+async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     let t = &ui.tec;
     let lido = |p: Pos, c: Campo| ui.d.borrow().as_ref().unwrap().atuacao[&p].mm(c);
     let subtitulo = |c: Campo| t.campo(c).subtitle().map(|s| s.to_string()).unwrap_or_default();
@@ -260,6 +260,24 @@ async fn exercitar(ui: &Rc<Ui>) {
     ui.remover_socd();
     ocioso(ui).await;
     println!("socd removido: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&D]);
+    ui.marcar(false);
+
+    // ----- DKS: monta no painel, grava, confere e remove -----
+    const INSERT: Pos = (1, 14);
+    ui.mudar_modo(Modo::Dks);
+    ui.selecionar(&[INSERT]);
+    let mut dks = mag82::Dks { teclas: [0xe1, 0x1a, 0, 0], inicio: 1200, ..Default::default() };
+    dks.definir_casas(0, mag82::Dks::casas_de_texto("1-3").unwrap());
+    dks.definir_casas(1, mag82::Dks::casas_de_texto("4").unwrap());
+    ui.dks.mostrar(&dks);
+    ui.aplicar_dks();
+    ocioso(ui).await;
+    let gravado = ui.d.borrow().as_ref().unwrap().avancada[&INSERT];
+    println!("dks Insert: gravado igual ao montado={}", gravado == mag82::Avancada::Dks(dks));
+    fotografar(ui, prefixo, "teclas", "teclas-dks-aplicado").await;
+    ui.remover_dks();
+    ocioso(ui).await;
+    println!("dks removido: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&INSERT]);
     ui.marcar(false);
     ui.mudar_modo(Modo::Atuacao);
 

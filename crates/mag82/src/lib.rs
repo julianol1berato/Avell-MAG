@@ -378,6 +378,12 @@ impl Teclado {
         let r = self.ler(&[grupo::TECLA_AVANCADA, 1, pos.0, pos.1])?;
         Ok(match r[4] {
             0 => Avancada::Nenhuma,
+            1 => Avancada::Dks(Dks {
+                teclas: [u16le(&r, 5), u16le(&r, 7), u16le(&r, 9), u16le(&r, 11)],
+                gatilhos: [r[13], r[14], r[15], r[16]],
+                inicio: u16le(&r, 17),
+                fundo: u16le(&r, 19),
+            }),
             6 => Avancada::Socd { par: (r[5], r[6]), codigos: (u16le(&r, 7), u16le(&r, 9)), regra: r[13] },
             outro => Avancada::Outra(outro),
         })
@@ -397,6 +403,25 @@ impl Teclado {
         let de_a = Avancada::Socd { par: b, codigos: (cod_a, cod_b), regra: regra_a };
         let de_b = Avancada::Socd { par: a, codigos: (cod_b, cod_a), regra: regra_b };
         self.esperar("o SOCD", |t| Ok(t.avancada(a)? == de_a && t.avancada(b)? == de_b))
+    }
+
+    /// Põe um DKS na tecla: até quatro funções, cada uma acionada em momentos diferentes do
+    /// curso (ver [`Dks`]). Se a tecla fazia parte de um par SOCD, o par é desfeito.
+    pub fn definir_dks(&mut self, pos: Pos, dks: &Dks) -> Resultado<()> {
+        dks.validar()?;
+        if let Avancada::Socd { par, .. } = self.avancada(pos)? {
+            self.remover_avancada(par)?;
+        }
+        let mut dados = vec![grupo::TECLA_AVANCADA, 2, pos.0, pos.1, 1];
+        for tecla in dks.teclas {
+            dados.extend_from_slice(&tecla.to_le_bytes());
+        }
+        dados.extend_from_slice(&dks.gatilhos);
+        dados.extend_from_slice(&dks.inicio.to_le_bytes());
+        dados.extend_from_slice(&dks.fundo.to_le_bytes());
+        self.comando(&dados)?;
+        let esperado = Avancada::Dks(*dks);
+        self.esperar("o DKS", |t| Ok(t.avancada(pos)? == esperado))
     }
 
     /// Remove a função avançada (SOCD etc.) de uma tecla.
@@ -652,8 +677,121 @@ pub enum Avancada {
     /// outra). `regra` é a visão desta tecla: 0 = última pressionada vence, 1 = esta tecla tem
     /// prioridade, 2 = a outra tem prioridade, 3 = neutro.
     Socd { par: Pos, codigos: (u16, u16), regra: u8 },
-    /// Outro tipo (DKS, toggle etc.), ainda não suportado; o número é o código do tipo.
+    /// Acionamento dinâmico: funções diferentes em pontos diferentes do curso da tecla.
+    Dks(Dks),
+    /// Outro tipo (toggle etc.), ainda não suportado; o número é o código do tipo.
     Outra(u8),
+}
+
+/// Menor e maior distância aceitas nos dois pontos do DKS, em milésimos de milímetro.
+pub const DKS_MIN: u16 = 100;
+pub const DKS_MAX: u16 = 3300;
+/// Os quatro momentos do curso em que um DKS pode agir.
+pub const DKS_MOMENTOS: [&str; 4] =
+    ["ao descer até o início", "ao chegar ao fundo", "ao sair do fundo", "ao voltar ao início"];
+
+/// DKS de uma tecla. O curso tem dois pontos, `inicio` e `fundo`, e portanto quatro momentos:
+/// descer até o início, chegar ao fundo, sair do fundo e voltar ao início. Cada uma das até
+/// quatro funções (`teclas`, 0 = vaga livre) tem um mapa de sete casas (ver [`Dks::casas`]):
+/// as pares dizem em quais momentos a função é acionada e as ímpares, se ela continua
+/// pressionada até o momento seguinte.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Dks {
+    pub teclas: [u16; 4],
+    /// Mapa de cada função, como o teclado guarda (um byte por função).
+    pub gatilhos: [u8; 4],
+    /// Distâncias em milésimos de milímetro.
+    pub inicio: u16,
+    pub fundo: u16,
+}
+
+impl Default for Dks {
+    fn default() -> Self {
+        Self { teclas: [0; 4], gatilhos: [0; 4], inicio: 1500, fundo: 3000 }
+    }
+}
+
+impl Dks {
+    /// Os bits de cada uma das sete casas no byte do teclado: momento 1, segura até o 2,
+    /// momento 2, segura até o 3, momento 3, segura até o 4, momento 4.
+    const BITS: [u8; 7] = [1, 2, 4, 8 | 16, 32, 64, 128];
+
+    /// As sete casas da função `i`: momento, segura, momento, segura, momento, segura, momento.
+    pub fn casas(&self, i: usize) -> [bool; 7] {
+        Self::BITS.map(|bits| self.gatilhos[i] & bits == bits)
+    }
+
+    pub fn definir_casas(&mut self, i: usize, casas: [bool; 7]) {
+        self.gatilhos[i] = Self::BITS.iter().zip(casas).filter(|(_, ligada)| *ligada).fold(0, |soma, (b, _)| soma | b);
+    }
+
+    /// As casas escritas como texto: "1" aciona no momento 1, "1-3" aciona no 1 e segura até o
+    /// 3, "2+" só segura depois do momento 2; itens separados por vírgula ("1-2,4").
+    pub fn casas_em_texto(casas: [bool; 7]) -> String {
+        let mut itens = Vec::new();
+        let mut m = 0;
+        while m < 4 {
+            if !casas[2 * m] {
+                m += 1;
+                continue;
+            }
+            let inicio = m;
+            while m < 3 && casas[2 * m + 1] && casas[2 * m + 2] {
+                m += 1;
+            }
+            itens.push(if m > inicio { format!("{}-{}", inicio + 1, m + 1) } else { format!("{}", m + 1) });
+            m += 1;
+        }
+        // "segura" sem os dois momentos em volta ligados: não cabe em um intervalo
+        for m in 0..3 {
+            if casas[2 * m + 1] && !(casas[2 * m] && casas[2 * m + 2]) {
+                itens.push(format!("{}+", m + 1));
+            }
+        }
+        itens.join(",")
+    }
+
+    /// O contrário de [`Dks::casas_em_texto`]; `None` se o texto não segue o formato.
+    pub fn casas_de_texto(texto: &str) -> Option<[bool; 7]> {
+        let momento = |t: &str| t.parse::<usize>().ok().filter(|m| (1..=4).contains(m)).map(|m| m - 1);
+        let mut casas = [false; 7];
+        for item in texto.split(',').map(str::trim) {
+            if let Some(m) = item.strip_suffix('+') {
+                let m = momento(m).filter(|m| *m < 3)?;
+                casas[2 * m + 1] = true;
+            } else if let Some((de, ate)) = item.split_once('-') {
+                let (de, ate) = (momento(de)?, momento(ate)?);
+                if de >= ate {
+                    return None;
+                }
+                casas[2 * de..=2 * ate].fill(true);
+            } else {
+                casas[2 * momento(item)?] = true;
+            }
+        }
+        Some(casas)
+    }
+
+    pub fn validar(&self) -> Resultado<()> {
+        let faixa = DKS_MIN..=DKS_MAX;
+        if !faixa.contains(&self.inicio) || !faixa.contains(&self.fundo) {
+            return Err(Erro::Invalido("as distâncias do DKS vão de 0,1 a 3,3 mm".into()));
+        }
+        if self.inicio >= self.fundo {
+            return Err(Erro::Invalido("no DKS o ponto de início precisa vir antes do fundo".into()));
+        }
+        if self.teclas.iter().all(|t| *t == 0) {
+            return Err(Erro::Invalido("o DKS precisa de pelo menos uma função".into()));
+        }
+        for (tecla, gatilho) in self.teclas.iter().zip(self.gatilhos) {
+            if (*tecla == 0) != (gatilho == 0) {
+                return Err(Erro::Invalido(
+                    "no DKS cada função precisa de pelo menos um momento, e vaga livre não tem momento".into(),
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 /// O que o teclado envia quando as duas teclas de um par SOCD estão pressionadas.
@@ -1172,6 +1310,54 @@ pub fn codigo_tecla(nome: &str) -> Option<u16> {
         return u16::from_str_radix(h, 16).ok();
     }
     funcoes().into_iter().find(|(_, n)| *n == nome).map(|(c, _)| c)
+}
+
+#[cfg(test)]
+mod testes_dks {
+    use super::Dks;
+
+    #[test]
+    fn casas_vao_e_voltam() {
+        let mut d = Dks::default();
+        // aciona no momento 1 e segura até o 3; a casa "segura 2-3" ocupa dois bits
+        d.definir_casas(0, [true, true, true, true, true, false, false]);
+        assert_eq!(d.gatilhos[0], 1 | 2 | 4 | 8 | 16 | 32);
+        assert_eq!(d.casas(0), [true, true, true, true, true, false, false]);
+        d.definir_casas(1, [false, false, false, false, false, false, true]);
+        assert_eq!(d.gatilhos[1], 128);
+        // metade dos bits da casa do meio não conta como ligada
+        d.gatilhos[2] = 8;
+        assert_eq!(d.casas(2), [false; 7]);
+    }
+
+    #[test]
+    fn casas_em_texto_vao_e_voltam() {
+        for texto in ["1", "4", "1-3", "1-4", "1-2,4", "2,3", "1,3-4", "2+", "1,1+", "1-2,2+"] {
+            let casas = Dks::casas_de_texto(texto).unwrap_or_else(|| panic!("{texto}"));
+            assert_eq!(Dks::casas_em_texto(casas), texto);
+        }
+        assert_eq!(Dks::casas_de_texto("1-3"), Some([true, true, true, true, true, false, false]));
+        for errado in ["", "0", "5", "3-1", "2-2", "4+", "a", "1,,2"] {
+            assert_eq!(Dks::casas_de_texto(errado), None, "{errado}");
+        }
+    }
+
+    #[test]
+    fn valida_o_dks() {
+        let mut d = Dks::default();
+        assert!(d.validar().is_err(), "sem função nenhuma");
+        d.teclas[0] = 4;
+        assert!(d.validar().is_err(), "função sem momento");
+        d.definir_casas(0, [true, false, false, false, false, false, false]);
+        assert!(d.validar().is_ok());
+        d.gatilhos[1] = 1;
+        assert!(d.validar().is_err(), "momento em vaga livre");
+        d.gatilhos[1] = 0;
+        d.inicio = 3000;
+        assert!(d.validar().is_err(), "início depois do fundo");
+        d.inicio = 50;
+        assert!(d.validar().is_err(), "distância fora da faixa");
+    }
 }
 
 #[cfg(test)]

@@ -25,7 +25,14 @@
       simula mouse nem teclado. Só a conta de quais teclas o retângulo toca tem teste unitário.
 - [ ] Luz lateral: os efeitos 6 a 10 não têm nome oficial e aparecem como "Efeito N"; a faixa de
       LEDs é desenhada em linha reta, sem saber como eles se distribuem pelas laterais do teclado.
-- [ ] Recursos do configurador oficial que ainda não existem aqui: DKS, macros e o knob.
+- [ ] Recursos do configurador oficial que ainda não existem aqui: macros e as teclas avançadas
+      MPT, MT, TGL, END e RS (o DKS e o SOCD já existem).
+- [ ] DKS: o significado das sete casas de cada função (aciona no momento / segura até o seguinte)
+      segue a tela do configurador oficial; falta conferir no teclado, tecla por tecla, o que cada
+      combinação envia de fato.
+- [ ] Knob: o teclado informa uma posição do tipo knob na linha de cima (linha 0, coluna 14), sem
+      função gravada, e não anuncia o recurso "knob". O configurador oficial não tem ajuste próprio
+      para ele; falta saber se o MAG82 tem o botão giratório e o que ele envia.
 - [ ] Atalhos Fn: três funções de fábrica ainda sem nome (Fn+F3 = 0xff00, Fn+W = 0xf20b,
       Fn+Ctrl = 0xff01); aparecem como "função do teclado sem nome". Fn+F4 é mostrado como
       "Super + D" por dedução do formato do código; falta confirmar no teclado.

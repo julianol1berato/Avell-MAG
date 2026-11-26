@@ -20,6 +20,8 @@ const CSS_BASE: &str = "
 .tecla { padding: 0; min-width: 0; min-height: 0; font-size: 12px; font-weight: 600; }
 .tecla.rt { box-shadow: inset 0 -3px 0 @accent_bg_color; }
 .tecla.socd { box-shadow: inset 0 3px 0 @warning_bg_color; }
+.tecla.dks { box-shadow: inset 0 3px 0 @success_bg_color; }
+.tecla.rt.dks { box-shadow: inset 0 -3px 0 @accent_bg_color, inset 0 3px 0 @success_bg_color; }
 .tecla.rt.socd { box-shadow: inset 0 -3px 0 @accent_bg_color, inset 0 3px 0 @warning_bg_color; }
 .tecla:checked { outline: 2px solid @accent_color; outline-offset: -2px; }
 .tecla .sub { font-size: 9px; font-weight: 400; opacity: 0.8; }
@@ -29,6 +31,7 @@ const CSS_BASE: &str = "
 .led:checked { outline: 2px solid @accent_color; outline-offset: -2px; }
 .legenda-rt { color: @accent_color; font-weight: 900; }
 .legenda-socd { color: @warning_color; font-weight: 900; }
+.legenda-dks { color: @success_color; font-weight: 900; }
 ";
 
 /// Ligado quando o sistema pede para o programa encerrar (SIGHUP, SIGINT, SIGTERM).
@@ -72,6 +75,7 @@ pub struct Ui {
     pub perfil: gtk::DropDown,
 
     pub tec: Teclas,
+    pub dks: crate::dks::PainelDks,
     pub luz: PainelLuz,
     pub disp: PainelDisp,
     pub cal: Calibracao,
@@ -89,7 +93,7 @@ impl Ui {
         let tela = gdk::Display::default().expect("sem display gráfico");
         gtk::style_context_add_provider_for_display(&tela, &css, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-        let (tec, pagina_teclas) = Teclas::construir(&tela);
+        let (tec, pagina_teclas, dks) = Teclas::construir(&tela);
         let (luz, pagina_luz) = PainelLuz::construir();
         let (disp, pagina_disp) = PainelDisp::construir();
 
@@ -173,6 +177,7 @@ impl Ui {
             gravacoes: Cell::new(0),
             perfil,
             tec,
+            dks,
             luz,
             disp,
             cal: Calibracao::default(),
@@ -226,6 +231,7 @@ impl Ui {
             }
         });
         crate::teclas::ligar(&ui);
+        crate::dks::ligar(&ui);
         crate::luz::ligar(&ui);
         crate::dispositivo::ligar(&ui);
         crate::atualizacao::ligar(&ui);
