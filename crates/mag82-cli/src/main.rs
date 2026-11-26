@@ -54,6 +54,27 @@ enum Comando {
         #[arg(long)]
         remover: bool,
     },
+    /// Mostra as teclas com DKS ou configura uma (ex.: dks caps --acao lshift:1-3 --acao w:4)
+    ///
+    /// O DKS aciona até quatro funções em momentos diferentes do curso da tecla:
+    /// 1 = ao descer até o início, 2 = ao chegar ao fundo, 3 = ao sair do fundo,
+    /// 4 = ao voltar ao início. "1-3" aciona no momento 1 e segura até o 3.
+    Dks {
+        /// Tecla física que recebe o DKS
+        tecla: Option<String>,
+        /// Função e momentos, até quatro vezes (ex.: --acao lshift:1-3 --acao w:2,4)
+        #[arg(long = "acao", value_name = "FUNÇÃO:MOMENTOS")]
+        acoes: Vec<String>,
+        /// Ponto de início, em mm (de 0.1 a 3.3)
+        #[arg(long, default_value_t = 1.5)]
+        inicio: f32,
+        /// Ponto do fundo, em mm (de 0.1 a 3.3)
+        #[arg(long, default_value_t = 3.0)]
+        fundo: f32,
+        /// Remove o DKS da tecla
+        #[arg(long)]
+        remover: bool,
+    },
     /// Lista as interfaces USB do teclado
     Info,
     /// Versão de firmware e recursos
@@ -535,6 +556,56 @@ fn executar(args: Args) -> Resultado<()> {
             }
             if !achou {
                 println!("nenhum par SOCD configurado");
+            }
+        }
+        Comando::Dks { tecla, acoes, inicio, fundo, remover } => {
+            let mapa = mapa(&mut t)?;
+            if let Some(tecla) = tecla {
+                let posicoes = selecionar(&mapa, &[tecla])?;
+                let [pos] = posicoes[..] else { return invalido("o DKS é configurado em uma tecla por vez") };
+                if remover {
+                    if !matches!(t.avancada(pos)?, Avancada::Dks(_)) {
+                        return invalido("essa tecla não tem DKS");
+                    }
+                    t.remover_avancada(pos)?;
+                } else {
+                    if acoes.is_empty() || acoes.len() > 4 {
+                        return invalido("informe de uma a quatro ações, ex.: mag82 dks caps --acao lshift:1-3 --acao w:4");
+                    }
+                    let mm = |v: f32| (v * 1000.0).round().clamp(0.0, 65535.0) as u16;
+                    let mut dks = mag82::Dks { inicio: mm(inicio), fundo: mm(fundo), ..Default::default() };
+                    for (i, acao) in acoes.iter().enumerate() {
+                        let Some((funcao, momentos)) = acao.rsplit_once(':') else {
+                            return invalido(format!("ação sem momentos: {acao}  (ex.: lshift:1-3)"));
+                        };
+                        let Some(codigo) = mag82::codigo_tecla(funcao).filter(|c| *c != 0) else {
+                            return invalido(format!("função desconhecida: {funcao}  (veja os nomes com: mag82 teclas)"));
+                        };
+                        let Some(casas) = mag82::Dks::casas_de_texto(momentos) else {
+                            return invalido(format!("momentos inválidos: {momentos}  (use 1 a 4, ex.: 1  1-3  2,4)"));
+                        };
+                        dks.teclas[i] = codigo;
+                        dks.definir_casas(i, casas);
+                    }
+                    t.definir_dks(pos, &dks)?;
+                }
+            }
+            let mut achou = false;
+            for (pos, nome) in &mapa {
+                if let Avancada::Dks(dks) = t.avancada(*pos)? {
+                    achou = true;
+                    println!(
+                        "{nome}: início {:.2} mm, fundo {:.2} mm",
+                        f32::from(dks.inicio) / 1000.0,
+                        f32::from(dks.fundo) / 1000.0
+                    );
+                    for i in (0..4).filter(|i| dks.teclas[*i] != 0) {
+                        println!("  {:<10} momentos {}", mag82::nome_tecla(dks.teclas[i]), mag82::Dks::casas_em_texto(dks.casas(i)));
+                    }
+                }
+            }
+            if !achou {
+                println!("nenhuma tecla com DKS");
             }
         }
         Comando::Calibrar { encerrar: true } => {

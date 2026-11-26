@@ -5,6 +5,7 @@
 //! - `ui`: janela, conexão e vigilância (conectar/desconectar, troca de perfil no teclado);
 //! - `teclas`, `luz`, `dispositivo`: uma página cada;
 //! - `atualizacao`: procura, baixa e instala versões novas do programa;
+//! - `dks`: modo DKS da página Teclas;
 //! - `calibracao`: diálogo de calibração das teclas;
 //! - `teste`: autoteste acionado pela variável `MAG82_TESTE`.
 
@@ -12,6 +13,7 @@ mod atualizacao;
 mod calibracao;
 mod dados;
 mod dispositivo;
+mod dks;
 mod fila;
 mod luz;
 mod teclas;

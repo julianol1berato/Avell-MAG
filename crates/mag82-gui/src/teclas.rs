@@ -14,7 +14,7 @@ use crate::ui::Ui;
 use crate::util::{botao, botao_cor, de_rgba, descrever_funcao, mm, para_rgba, rolavel, rotulo, rotulo_funcao, rotulo_longo};
 
 /// Tamanho de uma tecla, em pixels: acompanha o tamanho da janela, dentro destes limites.
-const U_MIN: f64 = 22.0;
+const U_MIN: f64 = 18.0;
 const U_MAX: f64 = 64.0;
 const U_PADRAO: f64 = 50.0;
 /// Espaço entre teclas, em pixels.
@@ -22,7 +22,11 @@ const FOLGA: f64 = 4.0;
 /// Fração da altura da página que o desenho do teclado pode ocupar.
 const ALTURA_TECLADO: f64 = 0.42;
 /// Abaixo desta largura de página, a linha de modos e seleção se divide em duas.
-const LARGURA_ESTREITA: i32 = 760;
+const LARGURA_ESTREITA: i32 = 960;
+/// Abaixo desta largura os títulos dos modos encurtam para o seletor caber.
+const LARGURA_TITULOS: i32 = 700;
+/// Abaixo desta largura a legenda das marcas não cabe em uma linha e é escondida.
+const LARGURA_LEGENDA: i32 = 760;
 /// Abaixo deste tamanho de tecla não cabe a segunda linha de texto.
 const U_COM_SUB: f64 = 36.0;
 /// Movimento mínimo do mouse, em pixels, para um clique virar seleção por arrasto.
@@ -88,10 +92,11 @@ pub enum Modo {
     Fn,
     Cor,
     Socd,
+    Dks,
 }
 
 impl Modo {
-    pub const TODOS: [Modo; 5] = [Modo::Atuacao, Modo::Remapear, Modo::Fn, Modo::Cor, Modo::Socd];
+    pub const TODOS: [Modo; 6] = [Modo::Atuacao, Modo::Remapear, Modo::Fn, Modo::Cor, Modo::Socd, Modo::Dks];
 
     pub fn nome(self) -> &'static str {
         match self {
@@ -100,6 +105,7 @@ impl Modo {
             Modo::Fn => "fn",
             Modo::Cor => "cor",
             Modo::Socd => "socd",
+            Modo::Dks => "dks",
         }
     }
 
@@ -110,6 +116,19 @@ impl Modo {
             Modo::Fn => "Atalhos Fn",
             Modo::Cor => "Cor fixa",
             Modo::Socd => "SOCD",
+            Modo::Dks => "DKS",
+        }
+    }
+
+    /// Título que cabe no seletor quando a janela é estreita.
+    fn titulo_curto(self) -> &'static str {
+        match self {
+            Modo::Atuacao => "Atuação",
+            Modo::Remapear => "Remap.",
+            Modo::Fn => "Fn",
+            Modo::Cor => "Cor",
+            Modo::Socd => "SOCD",
+            Modo::Dks => "DKS",
         }
     }
 
@@ -117,7 +136,7 @@ impl Modo {
     pub fn limite(self) -> Option<usize> {
         match self {
             Modo::Atuacao | Modo::Cor => None,
-            Modo::Remapear | Modo::Fn => Some(1),
+            Modo::Remapear | Modo::Fn | Modo::Dks => Some(1),
             Modo::Socd => Some(2),
         }
     }
@@ -129,6 +148,7 @@ impl Modo {
             Modo::Fn => "Clique numa tecla para ver ou mudar o que ela faz com Fn",
             Modo::Cor => "Clique ou arraste sobre as teclas que quer colorir",
             Modo::Socd => "Clique nas duas teclas opostas, como A e D",
+            Modo::Dks => "Clique na tecla que vai ter o DKS",
         }
     }
 }
@@ -203,7 +223,7 @@ pub struct Teclas {
 }
 
 impl Teclas {
-    pub fn construir(tela: &gdk::Display) -> (Self, gtk::Box) {
+    pub fn construir(tela: &gdk::Display) -> (Self, gtk::Box, crate::dks::PainelDks) {
         let css = gtk::CssProvider::new();
         let css_escala = gtk::CssProvider::new();
         for provedor in [&css, &css_escala] {
@@ -226,6 +246,7 @@ impl Teclas {
         for (marca, classe, texto) in [
             ("▁", "legenda-rt", "Rapid Trigger ligado"),
             ("▔", "legenda-socd", "faz parte de um par SOCD"),
+            ("▔", "legenda-dks", "tem DKS"),
             ("■", "", "fundo colorido = cor fixa"),
         ] {
             let m = gtk::Label::new(Some(marca));
@@ -401,6 +422,8 @@ impl Teclas {
         paineis.add_named(&rolavel(&painel_fn, 820), Some(Modo::Fn.nome()));
         paineis.add_named(&rolavel(&g_cor, 820), Some(Modo::Cor.nome()));
         paineis.add_named(&rolavel(&g_socd, 820), Some(Modo::Socd.nome()));
+        let dks = crate::dks::PainelDks::construir(&fn_opcoes[1..]);
+        paineis.add_named(&rolavel(&dks.painel, 820), Some(Modo::Dks.nome()));
 
         let topo = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -410,9 +433,19 @@ impl Teclas {
             .margin_end(12)
             .build();
         topo.append(&vitrine);
-        topo.append(&legenda);
+        // Como o desenho do teclado, a legenda e a linha de modos ficam em rolagens sem barras: assim
+        // não impõem largura mínima à janela, e `ajustar_tamanho` as reorganiza quando ela estreita.
+        let sem_minimo = |conteudo: &gtk::Widget| {
+            gtk::ScrolledWindow::builder()
+                .child(conteudo)
+                .hscrollbar_policy(gtk::PolicyType::External)
+                .vscrollbar_policy(gtk::PolicyType::Never)
+                .build()
+        };
+        topo.append(&sem_minimo(legenda.upcast_ref()));
         // em janela muito larga a linha não se espalha para longe do teclado e do painel
-        topo.append(&adw::Clamp::builder().child(&linha_sel).maximum_size(1100).build());
+        let linha_limitada = adw::Clamp::builder().child(&linha_sel).maximum_size(1100).build();
+        topo.append(&sem_minimo(linha_limitada.upcast_ref()));
         let pagina = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(8).build();
         pagina.append(&topo);
         pagina.append(&paineis);
@@ -465,7 +498,7 @@ impl Teclas {
             ap_socd,
             tira_socd,
         };
-        (teclas, pagina)
+        (teclas, pagina, dks)
     }
 
     pub fn campo(&self, campo: Campo) -> &adw::SpinRow {
@@ -589,7 +622,16 @@ impl Ui {
         let (largura, altura) = t.tamanho.get();
         let estreita = largura > 0 && largura < LARGURA_ESTREITA;
         t.linha_sel.set_orientation(if estreita { gtk::Orientation::Vertical } else { gtk::Orientation::Horizontal });
-        t.legenda.set_visible(largura == 0 || largura >= 620);
+        // seis modos por extenso não cabem na janela mínima: lá os títulos encurtam
+        for (modo, botao) in &t.modo_btns {
+            let curto = largura > 0 && largura < LARGURA_TITULOS;
+            let titulo = if curto { modo.titulo_curto() } else { modo.titulo() };
+            if botao.label().as_deref() != Some(titulo) {
+                botao.set_label(titulo);
+                botao.set_tooltip_text(curto.then_some(modo.titulo()));
+            }
+        }
+        t.legenda.set_visible(largura == 0 || largura >= LARGURA_LEGENDA);
 
         let dados = self.d.borrow();
         let Some(d) = dados.as_ref() else { return };
@@ -647,6 +689,7 @@ impl Ui {
                 Modo::Fn => (d.fn_atual[pos] != mag82::FUNCAO_PADRAO).then(|| rotulo_funcao(d.fn_atual[pos])),
                 Modo::Cor => None,
                 Modo::Socd => par.as_ref().map(|outra| format!("⇄ {outra}")),
+                Modo::Dks => matches!(d.avancada[pos], Avancada::Dks(_)).then(|| "DKS".to_string()),
             };
             let caixa = gtk::Box::builder().orientation(gtk::Orientation::Vertical).valign(gtk::Align::Center).build();
             caixa.append(&gtk::Label::new(Some(&rotulo(&d.nomes[pos]))));
@@ -673,6 +716,12 @@ impl Ui {
                 dica.push(format!("SOCD com {outra}"));
             } else {
                 b.remove_css_class("socd");
+            }
+            if let Avancada::Dks(dks) = d.avancada[pos] {
+                b.add_css_class("dks");
+                dica.push(format!("DKS com {} função(ões)", dks.teclas.iter().filter(|t| **t != 0).count()));
+            } else {
+                b.remove_css_class("dks");
             }
             if let Some(c) = d.grade.fixa(*pos) {
                 let brilho = 0.299 * f64::from(c.0) + 0.587 * f64::from(c.1) + 0.114 * f64::from(c.2);
@@ -806,6 +855,7 @@ impl Ui {
                 t.fn_funcao.set_subtitle(if e_fn { "A tecla Fn é a que ativa os atalhos" } else { "" });
             }
         }
+        self.atualizar_dks(&sel);
         t.g_socd.set_sensitive(!sel.is_empty());
         t.ap_socd.set_sensitive(sel.len() == 2);
         t.tira_socd.set_sensitive(sel.iter().any(|p| matches!(d.avancada[p], Avancada::Socd { .. })));

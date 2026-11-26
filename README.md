@@ -2,7 +2,7 @@
 
 <p align="center">
   <b>O configurador que faltava para o Avell Volcano's MAG82 no Linux.</b><br>
-  Atuação, Rapid Trigger, remapeamento, atalhos Fn, SOCD, RGB, perfis e calibração.<br>
+  Atuação, Rapid Trigger, remapeamento, atalhos Fn, SOCD, DKS, RGB, perfis e calibração.<br>
   Nativo, em GTK 4, sem root.
 </p>
 
@@ -101,6 +101,7 @@ E a interface só mostra o que o teclado confirmou.
 E mais:
 
 - **SOCD** para teclas opostas (A/D, W/S): vale a última, uma delas sempre vence, ou nenhuma.
+- **DKS**: até quatro funções na mesma tecla, acionadas em pontos diferentes do curso.
 - **Linha de comando** com tudo o que a interface faz.
 - **Sem root**: roda como usuário comum.
 
@@ -166,6 +167,7 @@ mag82 atuacao w a s d --ponto 0.5 --rt on
 mag82 remapear caps lctrl
 mag82 atalhos pgdn home                    # Fn + PgDn passa a ser Home
 mag82 socd a d --modo neutro
+mag82 dks caps --acao lshift:1-3 --acao w:4   # Shift do início até sair do fundo; W ao soltar
 mag82 cor w a s d --cor ff8800
 mag82 luz --modo 1 --brilho 60
 mag82 luz --lateral --modo 2
@@ -193,7 +195,7 @@ Cada calibração fica registrada em `~/.local/state/mag82/calibracao.log`.
 ## Limitações
 
 - Testado só no **MAG82** (USB `1ca6:3920`, firmware 0.0.2.0).
-- Ainda faltam DKS, macros e a função do knob.
+- Ainda faltam macros e as outras teclas avançadas do aplicativo oficial (MPT, MT, TGL e END).
 - Não deixe o configurador web oficial aberto junto com este programa.
 
 O resto das pendências está no [TODO.md](TODO.md).
