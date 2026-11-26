@@ -23,14 +23,8 @@
 
 - [ ] Seleção por arrasto e atalhos (Ctrl+A, Esc, F5) não têm teste automático: o autoteste não
       simula mouse nem teclado. Só a conta de quais teclas o retângulo toca tem teste unitário.
-- [ ] Remapear uma tecla que faz parte de um par SOCD não atualiza o par, que guarda a função
-      das duas teclas no momento em que foi criado.
-- [ ] O teclado demora alguns milissegundos para refletir uma gravação na leitura. A cor fixa e a
-      troca de perfil já esperam a confirmação; falta conferir se paleta, taxa e SOCD têm o mesmo
-      atraso.
 - [ ] Luz lateral: os efeitos 6 a 10 não têm nome oficial e aparecem como "Efeito N"; a faixa de
       LEDs é desenhada em linha reta, sem saber como eles se distribuem pelas laterais do teclado.
-- [ ] "Cor do efeito" mostra o nome de cada cor, mas ainda sem uma amostra colorida na lista.
 - [ ] Recursos do configurador oficial que ainda não existem aqui: DKS, macros e o knob.
 - [ ] Atalhos Fn: três funções de fábrica ainda sem nome (Fn+F3 = 0xff00, Fn+W = 0xf20b,
       Fn+Ctrl = 0xff01); aparecem como "função do teclado sem nome". Fn+F4 é mostrado como

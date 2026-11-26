@@ -824,7 +824,7 @@ impl Ui {
         let opcoes_ref: Vec<&str> = opcoes.iter().map(String::as_str).collect();
         let mut escolhido = t.socd_modo.selected().min(3);
         if let [a, b] = sel[..] {
-            if let Avancada::Socd { par, regra } = d.avancada[&a] {
+            if let Avancada::Socd { par, regra, .. } = d.avancada[&a] {
                 if par == b {
                     escolhido = ModoSocd::TODOS.iter().position(|m| *m == ModoSocd::da_regra(regra)).unwrap_or(0) as u32;
                 }
@@ -1052,12 +1052,21 @@ impl Ui {
             return;
         };
         self.pedir(
-            move |t| t.definir_funcao(pos, codigo),
-            move |ui, novo| {
+            move |t| {
+                let novo = t.definir_funcao(pos, codigo)?;
+                // se a tecla faz parte de um par SOCD, o par foi regravado com a função nova
+                let mut pares = vec![(pos, t.avancada(pos)?)];
+                if let Avancada::Socd { par, .. } = pares[0].1 {
+                    pares.push((par, t.avancada(par)?));
+                }
+                Ok((novo, pares))
+            },
+            move |ui, (novo, pares)| {
                 let mensagem = {
                     let mut dados = ui.d.borrow_mut();
                     let Some(d) = dados.as_mut() else { return };
                     d.atual.insert(pos, novo);
+                    d.avancada.extend(pares);
                     format!("{} agora faz: {}", rotulo(&d.nomes[&pos]), descrever_funcao(novo))
                 };
                 ui.avisar(&mensagem);

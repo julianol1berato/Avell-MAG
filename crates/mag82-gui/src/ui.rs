@@ -66,6 +66,9 @@ pub struct Ui {
     /// Aviso que está na tela: sai quando chega um novo, para não formar fila de avisos velhos.
     aviso_atual: RefCell<Option<adw::Toast>>,
     girando: gtk::Spinner,
+    /// "Gravando…" ao lado do indicador, enquanto uma mudança espera a confirmação do teclado.
+    gravando: gtk::Label,
+    gravacoes: Cell<u32>,
     pub perfil: gtk::DropDown,
 
     pub tec: Teclas,
@@ -104,6 +107,8 @@ impl Ui {
         let girando = gtk::Spinner::new();
         barra.pack_start(&recarregar);
         barra.pack_start(&girando);
+        let gravando = gtk::Label::builder().label("Gravando…").css_classes(["dim-label", "caption"]).visible(false).build();
+        barra.pack_start(&gravando);
         let sobre = gtk::Button::builder().icon_name("help-about-symbolic").tooltip_text("Sobre o MAG82").build();
         barra.pack_end(&sobre);
         let perfil = gtk::DropDown::from_strings(&[]);
@@ -164,6 +169,8 @@ impl Ui {
             avisos,
             aviso_atual: RefCell::new(None),
             girando,
+            gravando,
+            gravacoes: Cell::new(0),
             perfil,
             tec,
             luz,
@@ -391,11 +398,17 @@ impl Ui {
         trabalho: impl FnOnce(&mut Teclado) -> Resultado<T> + Send + 'static,
         depois: impl FnOnce(&Rc<Self>, T) + 'static,
     ) {
-        self.pedir_bruto(true, trabalho, |ui, resultado| match resultado {
-            Ok(valor) => depois(ui, valor),
-            Err(e) => {
-                ui.avisar_erro(&e.to_string());
-                ui.conectar(true);
+        self.gravacoes.set(self.gravacoes.get() + 1);
+        self.gravando.set_visible(true);
+        self.pedir_bruto(true, trabalho, |ui, resultado| {
+            ui.gravacoes.set(ui.gravacoes.get().saturating_sub(1));
+            ui.gravando.set_visible(ui.gravacoes.get() > 0);
+            match resultado {
+                Ok(valor) => depois(ui, valor),
+                Err(e) => {
+                    ui.avisar_erro(&e.to_string());
+                    ui.conectar(true);
+                }
             }
         });
     }

@@ -519,7 +519,7 @@ fn executar(args: Args) -> Resultado<()> {
             }
             let mut achou = false;
             for (pos, nome) in &mapa {
-                if let Avancada::Socd { par, regra } = t.avancada(*pos)? {
+                if let Avancada::Socd { par, regra, .. } = t.avancada(*pos)? {
                     if *pos < par {
                         achou = true;
                         let outra = mapa.get(&par).map(String::as_str).unwrap_or("?");
