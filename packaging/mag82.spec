@@ -2,7 +2,7 @@
 # compilação, então este spec serve para `rpmbuild` com rede (como na integração contínua),
 # não para os construtores oficiais do Fedora.
 Name:           mag82
-Version:        %{?versao}%{!?versao:0.1.2}
+Version:        %{?versao}%{!?versao:0.1.3}
 Release:        1%{?dist}
 Summary:        Configuração do teclado Avell Volcano's MAG82
 License:        MIT

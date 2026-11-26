@@ -47,7 +47,7 @@ pub const AUTOR_E_CIDADE: &str = "Juliano Liberato · Joinville - SC";
 
 /// Menor janela em que tudo continua utilizável.
 pub const LARGURA_MIN: i32 = 540;
-pub const ALTURA_MIN: i32 = 540;
+pub const ALTURA_MIN: i32 = 580;
 
 pub struct Ui {
     pub fila: Fila,

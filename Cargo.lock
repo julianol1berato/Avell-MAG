@@ -787,14 +787,14 @@ checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "mag82"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "libc",
 ]
 
 [[package]]
 name = "mag82-cli"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "clap",
  "libc",
@@ -803,7 +803,7 @@ dependencies = [
 
 [[package]]
 name = "mag82-gui"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "futures-channel",
  "gtk4",

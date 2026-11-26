@@ -132,6 +132,14 @@ Duas coisas que vale saber:
 Requisitos: GTK 4.12 e libadwaita 1.5 ou mais novos.
 Na prática: Ubuntu 24.04, Debian 13 e Fedora 43 em diante.
 
+### Tamanho da tela
+
+- **Recomendado:** tela de 1280 × 800 ou maior. A janela abre em 1020 × 880 e mostra o teclado e os
+  ajustes sem precisar rolar.
+- **Mínimo:** a janela encolhe até 540 × 580. Nesse tamanho as abas vão para o rodapé, os nomes dos
+  modos encurtam e a legenda some; os ajustes continuam todos lá, rolando abaixo do teclado.
+- **Abaixo disso** o programa não cabe: em uma tela menor que 540 × 580 parte da janela fica fora dela.
+
 ### A partir do código
 
 ```sh
