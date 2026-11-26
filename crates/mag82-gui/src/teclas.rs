@@ -56,18 +56,37 @@ pub struct Predef {
     valores: &'static [(Campo, u16)],
 }
 
+/// Zonas mortas e início do Rapid Trigger de fábrica, iguais em todas as predefinições.
+const BASE_PREDEF: [(Campo, u16); 3] = [(Campo::RtInicio, 500), (Campo::ZonaTopo, 200), (Campo::ZonaFundo, 200)];
+
+// Cada predefinição preenche todos os campos: se deixasse algum de fora, ele ficaria na tela com
+// o valor da predefinição escolhida antes.
 pub const PREDEFS: [Predef; 3] = [
     Predef {
         nome: "Competitivo",
         dica: "Atuação em 0,50 mm e Rapid Trigger de 0,15 mm: resposta rápida para jogos (WASD)",
         rt: true,
-        valores: &[(Campo::Ponto, 500), (Campo::RtPress, 150), (Campo::RtSolta, 150)],
+        valores: &[
+            (Campo::Ponto, 500),
+            BASE_PREDEF[0],
+            (Campo::RtPress, 150),
+            (Campo::RtSolta, 150),
+            BASE_PREDEF[1],
+            BASE_PREDEF[2],
+        ],
     },
     Predef {
         nome: "Digitação",
         dica: "Atuação em 2,20 mm, sem Rapid Trigger: evita toques acidentais",
         rt: false,
-        valores: &[(Campo::Ponto, 2200)],
+        valores: &[
+            (Campo::Ponto, 2200),
+            BASE_PREDEF[0],
+            (Campo::RtPress, 300),
+            (Campo::RtSolta, 300),
+            BASE_PREDEF[1],
+            BASE_PREDEF[2],
+        ],
     },
     Predef {
         nome: "Padrão de fábrica",
@@ -75,11 +94,11 @@ pub const PREDEFS: [Predef; 3] = [
         rt: false,
         valores: &[
             (Campo::Ponto, 2000),
-            (Campo::RtInicio, 500),
+            BASE_PREDEF[0],
             (Campo::RtPress, 300),
             (Campo::RtSolta, 300),
-            (Campo::ZonaTopo, 200),
-            (Campo::ZonaFundo, 200),
+            BASE_PREDEF[1],
+            BASE_PREDEF[2],
         ],
     },
 ];
@@ -1292,6 +1311,10 @@ mod testes {
             for (campo, valor) in p.valores {
                 assert!(*valor >= campo.minimo() && *valor <= mag82::CURSO_MAX, "{}: {:?}", p.nome, campo);
                 assert!(CAMPOS.iter().any(|(c, _)| c == campo), "{}: {:?} sem controle na tela", p.nome, campo);
+            }
+            // toda predefinição preenche todos os campos, para nenhum ficar com o valor da anterior
+            for (campo, _) in CAMPOS {
+                assert!(p.valores.iter().any(|(c, _)| *c == campo), "{}: falta {:?}", p.nome, campo);
             }
         }
     }
