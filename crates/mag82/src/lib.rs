@@ -705,7 +705,8 @@ impl Rgb {
             };
         let base = match tom {
             t if t < 15.0 => "Vermelho",
-            t if t < 42.0 => "Laranja",
+            t if t < 38.0 => "Laranja",
+            t if t < 52.0 => "Âmbar",
             t if t < 70.0 => "Amarelo",
             t if t < 160.0 => "Verde",
             t if t < 200.0 => "Ciano",
@@ -1129,6 +1130,7 @@ mod testes_cor {
         for (hex, esperado) in [
             ("ff0000", "Vermelho"),
             ("ff8800", "Laranja"),
+            ("f5c211", "Âmbar"),
             ("ffff00", "Amarelo"),
             ("00ff00", "Verde"),
             ("00ffff", "Ciano"),

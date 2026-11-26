@@ -99,9 +99,12 @@ impl Controles {
     /// Escreve o nome de cada cor da paleta na lista "Cor do efeito" e nas dicas dos botões.
     /// Quem chama deve estar com as mudanças silenciadas: trocar a lista mexe na seleção.
     fn nomear_cores(&self, paleta: &mag82::Paleta, escolhida: u8) {
+        let cores: Vec<String> = (1..=7).map(|i| paleta.cor(i).nome()).collect();
         let mut nomes = vec!["Padrão do efeito".to_string()];
-        for (i, b) in self.paleta_btns.iter().enumerate() {
-            let nome = format!("Cor {} - {}", i + 1, paleta.cor(i + 1).nome());
+        for (i, (b, nome)) in self.paleta_btns.iter().zip(&cores).enumerate() {
+            // o número só aparece para separar duas cores que têm o mesmo nome
+            let repetido = cores.iter().filter(|c| *c == nome).count() > 1;
+            let nome = if repetido { format!("{nome} ({})", i + 1) } else { nome.clone() };
             b.set_tooltip_text(Some(&nome));
             nomes.push(nome);
         }
