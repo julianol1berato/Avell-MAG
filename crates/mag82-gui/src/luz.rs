@@ -28,6 +28,8 @@ pub struct Controles {
     dir: adw::SwitchRow,
     cor: adw::ComboRow,
     paleta_btns: Vec<gtk::ColorDialogButton>,
+    /// A cor de cada item da lista "Cor do efeito", pelo nome ("Padrão do efeito" não tem).
+    amostras: Rc<RefCell<Vec<(String, Rgb)>>>,
     /// Contador usado para enviar a iluminação só depois que o usuário para de arrastar.
     geracao: Cell<u32>,
 }
@@ -43,6 +45,50 @@ impl Controles {
             .title("Cor do efeito")
             .subtitle("Nem todo efeito usa a cor escolhida")
             .build();
+        // cada item da lista leva uma amostra da cor ao lado do nome
+        let amostras: Rc<RefCell<Vec<(String, Rgb)>>> = Rc::default();
+        let fabrica = gtk::SignalListItemFactory::new();
+        fabrica.connect_setup(|_, item| {
+            let Some(item) = item.downcast_ref::<gtk::ListItem>() else { return };
+            let amostra = gtk::DrawingArea::builder().content_width(18).content_height(18).valign(gtk::Align::Center).build();
+            let nome = gtk::Label::builder().xalign(0.0).hexpand(true).build();
+            let marca = gtk::Image::builder().icon_name("object-select-symbolic").opacity(0.0).build();
+            let caixa = gtk::Box::builder().spacing(10).build();
+            caixa.append(&amostra);
+            caixa.append(&nome);
+            caixa.append(&marca);
+            item.set_child(Some(&caixa));
+            // na lista aberta, o item escolhido leva a marca; no botão fechado não há seleção
+            item.connect_selected_notify(move |item| marca.set_opacity(if item.is_selected() { 1.0 } else { 0.0 }));
+        });
+        let amostras2 = amostras.clone();
+        fabrica.connect_bind(move |_, item| {
+            let Some(item) = item.downcast_ref::<gtk::ListItem>() else { return };
+            let Some(caixa) = item.child().and_downcast::<gtk::Box>() else { return };
+            let (Some(amostra), Some(nome)) = (
+                caixa.first_child().and_downcast::<gtk::DrawingArea>(),
+                caixa.first_child().and_then(|a| a.next_sibling()).and_downcast::<gtk::Label>(),
+            ) else {
+                return;
+            };
+            let texto = item.item().and_downcast::<gtk::StringObject>().map(|s| s.string()).unwrap_or_default();
+            nome.set_label(&texto);
+            // pelo nome, que não se repete na lista: no botão fechado o item não tem posição confiável
+            let cor = amostras2.borrow().iter().find(|(n, _)| *n == texto.as_str()).map(|(_, c)| *c);
+            amostra.set_opacity(if cor.is_some() { 1.0 } else { 0.0 });
+            amostra.set_draw_func(move |_, cr, largura, altura| {
+                let Some(Rgb(r, g, b)) = cor else { return };
+                let (l, a) = (f64::from(largura), f64::from(altura));
+                cr.arc(l / 2.0, a / 2.0, l.min(a) / 2.0 - 1.0, 0.0, std::f64::consts::TAU);
+                cr.set_source_rgb(f64::from(r) / 255.0, f64::from(g) / 255.0, f64::from(b) / 255.0);
+                let _ = cr.fill_preserve();
+                // contorno discreto: sem ele o preto e o branco somem no fundo
+                cr.set_source_rgba(0.5, 0.5, 0.5, 0.6);
+                cr.set_line_width(1.0);
+                let _ = cr.stroke();
+            });
+        });
+        cor.set_factory(Some(&fabrica));
         let g_efeito = adw::PreferencesGroup::builder().title(titulo).build();
         g_efeito.add(&ligada);
         g_efeito.add(&modo);
@@ -58,7 +104,7 @@ impl Controles {
             linha_paleta.add_suffix(b);
         }
         g_paleta.add(&linha_paleta);
-        Self { area, g_efeito, g_paleta, ligada, modo, brilho, veloc, dir, cor, paleta_btns, geracao: Cell::new(0) }
+        Self { area, g_efeito, g_paleta, ligada, modo, brilho, veloc, dir, cor, paleta_btns, amostras, geracao: Cell::new(0) }
     }
 
     fn ligar(&self, ui: &Rc<Ui>) {
@@ -108,6 +154,7 @@ impl Controles {
             b.set_tooltip_text(Some(&nome));
             nomes.push(nome);
         }
+        *self.amostras.borrow_mut() = nomes[1..].iter().cloned().zip((1..=7).map(|i| paleta.cor(i))).collect();
         let nomes_ref: Vec<&str> = nomes.iter().map(String::as_str).collect();
         self.cor.set_model(Some(&gtk::StringList::new(&nomes_ref)));
         self.cor.set_selected(u32::from(escolhida.min(7)));

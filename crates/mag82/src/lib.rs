@@ -292,7 +292,21 @@ impl Teclado {
     }
 
     pub fn definir_taxa(&mut self, codigo: u8) -> Resultado<()> {
-        self.comando(&[grupo::GLOBAL, 5, 2, codigo]).map(|_| ())
+        self.comando(&[grupo::GLOBAL, 5, 2, codigo])?;
+        self.esperar("a taxa de resposta", |t| Ok(t.taxas()?.1 == codigo))
+    }
+
+    /// Depois de uma gravação, relê até o teclado devolver o valor novo. Ele leva alguns
+    /// milissegundos para refletir o que foi gravado; sem esperar, quem lê logo em seguida
+    /// recebe o valor antigo e pode regravá-lo por cima.
+    fn esperar(&mut self, o_que: &str, mut confere: impl FnMut(&mut Self) -> Resultado<bool>) -> Resultado<()> {
+        for _ in 0..50 {
+            if confere(self)? {
+                return Ok(());
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        Err(Erro::Invalido(format!("o teclado não confirmou {o_que}")))
     }
 
     // ---------- calibração ----------
@@ -353,7 +367,9 @@ impl Teclado {
         }
         let mut dados = vec![grupo::GLOBAL, 3, 4, indice];
         dados.extend_from_slice(&nome.as_bytes()[..fim]);
-        self.comando(&dados).map(|_| ())
+        self.comando(&dados)?;
+        let esperado = nome[..fim].trim().to_string();
+        self.esperar("o nome do perfil", |t| Ok(t.nome_perfil(indice)? == esperado))
     }
 
     // ---------- teclas avançadas ----------
@@ -362,7 +378,7 @@ impl Teclado {
         let r = self.ler(&[grupo::TECLA_AVANCADA, 1, pos.0, pos.1])?;
         Ok(match r[4] {
             0 => Avancada::Nenhuma,
-            6 => Avancada::Socd { par: (r[5], r[6]), regra: r[13] },
+            6 => Avancada::Socd { par: (r[5], r[6]), codigos: (u16le(&r, 7), u16le(&r, 9)), regra: r[13] },
             outro => Avancada::Outra(outro),
         })
     }
@@ -378,12 +394,15 @@ impl Teclado {
         // um pacote para cada tecla, cada um apontando para a outra; atraso (2 bytes) sempre 0
         self.comando(&[grupo::TECLA_AVANCADA, 2, a.0, a.1, 6, b.0, b.1, ca[0], ca[1], cb[0], cb[1], 0, 0, regra_a])?;
         self.comando(&[grupo::TECLA_AVANCADA, 2, b.0, b.1, 6, a.0, a.1, cb[0], cb[1], ca[0], ca[1], 0, 0, regra_b])?;
-        Ok(())
+        let de_a = Avancada::Socd { par: b, codigos: (cod_a, cod_b), regra: regra_a };
+        let de_b = Avancada::Socd { par: a, codigos: (cod_b, cod_a), regra: regra_b };
+        self.esperar("o SOCD", |t| Ok(t.avancada(a)? == de_a && t.avancada(b)? == de_b))
     }
 
     /// Remove a função avançada (SOCD etc.) de uma tecla.
     pub fn remover_avancada(&mut self, pos: Pos) -> Resultado<()> {
-        self.comando(&[grupo::TECLA_AVANCADA, 2, pos.0, pos.1, 0]).map(|_| ())
+        self.comando(&[grupo::TECLA_AVANCADA, 2, pos.0, pos.1, 0])?;
+        self.esperar("a remoção da função avançada", |t| Ok(t.avancada(pos)? == Avancada::Nenhuma))
     }
 
     // ---------- iluminação ----------
@@ -418,8 +437,9 @@ impl Teclado {
         }
         self.comando(&[
             grupo::LIGHTING, 2, area, 0, l.ligada as u8, l.modo, l.brilho, l.velocidade, l.invertida as u8, l.cor,
-        ])
-        .map(|_| ())
+        ])?;
+        let esperada = l.clone();
+        self.esperar("a iluminação", |t| Ok(t.luz_de(area)? == esperada))
     }
 
     /// As 8 cores da paleta (a posição 0 é reservada e não deve ser alterada).
@@ -442,7 +462,9 @@ impl Teclado {
     pub fn definir_paleta_de(&mut self, area: u8, p: &Paleta) -> Resultado<()> {
         let mut dados = vec![grupo::LIGHTING, 2, area, 1];
         dados.extend_from_slice(&p.bruto);
-        self.comando(&dados).map(|_| ())
+        self.comando(&dados)?;
+        let esperada = p.bruto;
+        self.esperar("a paleta", |t| Ok(t.paleta_de(area)?.bruto == esperada))
     }
 
     /// Cores por tecla (as fixas e as que o efeito está mostrando no momento).
@@ -532,6 +554,27 @@ impl Teclado {
         }
         let c = codigo.to_le_bytes();
         self.comando(&[grupo::LAYOUT, 4, camada, pos.0, pos.1, c[0], c[1]])?;
+        // espera a leitura refletir a gravação; se o teclado ficar com outro código, é esse que vale
+        let mut lido = self.funcao_na_camada(camada, pos)?;
+        for _ in 0..50 {
+            if lido == codigo {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+            lido = self.funcao_na_camada(camada, pos)?;
+        }
+        // um par SOCD guarda a função das duas teclas: acompanha a mudança na camada base
+        if camada == 0 {
+            if let Avancada::Socd { par, regra, .. } = self.avancada(pos)? {
+                let do_par = self.funcao_na_camada(0, par)?;
+                self.definir_socd(pos, par, lido, do_par, ModoSocd::da_regra(regra))?;
+            }
+        }
+        Ok(lido)
+    }
+
+    /// O que uma tecla faz numa camada.
+    pub fn funcao_na_camada(&mut self, camada: u8, pos: Pos) -> Resultado<u16> {
         let r = self.ler(&[grupo::LAYOUT, 3, camada, pos.0, pos.1])?;
         Ok(u16le(&r, 5))
     }
@@ -575,7 +618,17 @@ impl Teclado {
         dados.extend_from_slice(&a.corpo);
         dados[4 + 16] = 0; // marca de calibração: sempre 0 na gravação
         self.comando(&dados)?;
-        self.atuacao(pos)
+        // espera a leitura refletir a gravação (a marca de calibração é do teclado, não entra na conta)
+        let igual = |lida: &Atuacao| lida.corpo[..16] == dados[4..20] && lida.corpo[17..] == dados[21..27];
+        let mut lida = self.atuacao(pos)?;
+        for _ in 0..50 {
+            if igual(&lida) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+            lida = self.atuacao(pos)?;
+        }
+        Ok(lida)
     }
 }
 
@@ -595,9 +648,10 @@ pub struct Dispositivo {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Avancada {
     Nenhuma,
-    /// SOCD com a tecla `par`. `regra` é a visão desta tecla: 0 = última pressionada vence,
-    /// 1 = esta tecla tem prioridade, 2 = a outra tem prioridade, 3 = neutro.
-    Socd { par: Pos, regra: u8 },
+    /// SOCD com a tecla `par`. `codigos` são as funções guardadas no par (a desta tecla e a da
+    /// outra). `regra` é a visão desta tecla: 0 = última pressionada vence, 1 = esta tecla tem
+    /// prioridade, 2 = a outra tem prioridade, 3 = neutro.
+    Socd { par: Pos, codigos: (u16, u16), regra: u8 },
     /// Outro tipo (DKS, toggle etc.), ainda não suportado; o número é o código do tipo.
     Outra(u8),
 }
