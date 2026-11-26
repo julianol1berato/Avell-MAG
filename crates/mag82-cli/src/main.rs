@@ -89,6 +89,9 @@ enum Comando {
         indice: Option<u8>,
         #[arg(value_parser = cor_hex)]
         cor: Option<Rgb>,
+        /// Age na paleta da luz lateral em vez da paleta das teclas
+        #[arg(long)]
+        lateral: bool,
     },
     /// Cor fixa por tecla (ex.: cor w a s d --cor ff0000) ou por LED da lateral (ex.: cor --lateral 1 2 3 --cor ff0000)
     Cor {
@@ -295,16 +298,20 @@ fn executar(args: Args) -> Resultado<()> {
                 luz.cor
             );
         }
-        Comando::Paleta { indice, cor } => {
-            let mut paleta = t.paleta()?;
+        Comando::Paleta { indice, cor, lateral } => {
+            let area = if lateral { mag82::AREA_LATERAL } else { mag82::AREA_TECLAS };
+            if lateral && !t.areas_luz()?.iter().any(|a| a.indice == area) {
+                return invalido("este teclado não tem luz lateral");
+            }
+            let mut paleta = t.paleta_de(area)?;
             if let Some(i) = indice {
                 let Some(cor) = cor else { return invalido("informe a cor, ex.: mag82 paleta 1 ff8800") };
                 paleta.definir(i as usize, cor);
-                t.definir_paleta(&paleta)?;
-                paleta = t.paleta()?;
+                t.definir_paleta_de(area, &paleta)?;
+                paleta = t.paleta_de(area)?;
             }
             for i in 0..8 {
-                println!("cor {i}: {}", paleta.cor(i).hex());
+                println!("cor {i}: {}  {}", paleta.cor(i).hex(), paleta.cor(i).nome());
             }
         }
         Comando::Cor { teclas, lateral: true, cor, limpar } => {

@@ -42,7 +42,6 @@ impl Controles {
         let cor = adw::ComboRow::builder()
             .title("Cor do efeito")
             .subtitle("Nem todo efeito usa a cor escolhida")
-            .model(&gtk::StringList::new(&["Padrão do efeito", "Cor 1", "Cor 2", "Cor 3", "Cor 4", "Cor 5", "Cor 6", "Cor 7"]))
             .build();
         let g_efeito = adw::PreferencesGroup::builder().title(titulo).build();
         g_efeito.add(&ligada);
@@ -55,8 +54,7 @@ impl Controles {
         let g_paleta = adw::PreferencesGroup::builder().title(titulo_paleta).description(descricao_paleta).build();
         let linha_paleta = adw::ActionRow::builder().title("Cores 1 a 7").build();
         let paleta_btns: Vec<gtk::ColorDialogButton> = (0..7).map(|_| botao_cor()).collect();
-        for (i, b) in paleta_btns.iter().enumerate() {
-            b.set_tooltip_text(Some(&format!("Cor {}", i + 1)));
+        for b in &paleta_btns {
             linha_paleta.add_suffix(b);
         }
         g_paleta.add(&linha_paleta);
@@ -92,10 +90,27 @@ impl Controles {
         self.brilho.set_value(f64::from(luz.brilho));
         self.veloc.set_value(f64::from(luz.velocidade));
         self.dir.set_active(luz.invertida);
-        self.cor.set_selected(u32::from(luz.cor.min(7)));
         for (i, b) in self.paleta_btns.iter().enumerate() {
             b.set_rgba(&para_rgba(paleta.cor(i + 1)));
         }
+        self.nomear_cores(paleta, luz.cor);
+    }
+
+    /// Escreve o nome de cada cor da paleta na lista "Cor do efeito" e nas dicas dos botões.
+    /// Quem chama deve estar com as mudanças silenciadas: trocar a lista mexe na seleção.
+    fn nomear_cores(&self, paleta: &mag82::Paleta, escolhida: u8) {
+        let cores: Vec<String> = (1..=7).map(|i| paleta.cor(i).nome()).collect();
+        let mut nomes = vec!["Padrão do efeito".to_string()];
+        for (i, (b, nome)) in self.paleta_btns.iter().zip(&cores).enumerate() {
+            // o número só aparece para separar duas cores que têm o mesmo nome
+            let repetido = cores.iter().filter(|c| *c == nome).count() > 1;
+            let nome = if repetido { format!("{nome} ({})", i + 1) } else { nome.clone() };
+            b.set_tooltip_text(Some(&nome));
+            nomes.push(nome);
+        }
+        let nomes_ref: Vec<&str> = nomes.iter().map(String::as_str).collect();
+        self.cor.set_model(Some(&gtk::StringList::new(&nomes_ref)));
+        self.cor.set_selected(u32::from(escolhida.min(7)));
     }
 
     fn da_tela(&self) -> Luz {
@@ -379,6 +394,10 @@ impl Ui {
                 Ok(paleta)
             },
             move |ui, paleta| {
+                // a cor escolhida é a da tela: pode haver uma troca ainda a caminho do teclado
+                let c = ui.luz.controles(area);
+                let escolhida = c.cor.selected() as u8;
+                ui.silencioso(|| c.nomear_cores(&paleta, escolhida));
                 if let Some(d) = ui.d.borrow_mut().as_mut() {
                     match (area, d.lateral.as_mut()) {
                         (AREA_LATERAL, Some(l)) => l.paleta = paleta,

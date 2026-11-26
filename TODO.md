@@ -21,7 +21,7 @@
       atraso.
 - [ ] Luz lateral: os efeitos 6 a 10 não têm nome oficial e aparecem como "Efeito N"; a faixa de
       LEDs é desenhada em linha reta, sem saber como eles se distribuem pelas laterais do teclado.
-- [ ] "Cor do efeito" mostra "Cor 1…7" sem amostra da cor.
+- [ ] "Cor do efeito" mostra o nome de cada cor, mas ainda sem uma amostra colorida na lista.
 - [ ] Recursos do configurador oficial que ainda não existem aqui: DKS, macros e o knob.
 - [ ] Atalhos Fn: três funções de fábrica ainda sem nome (Fn+F3 = 0xff00, Fn+W = 0xf20b,
       Fn+Ctrl = 0xff01); aparecem como "função do teclado sem nome". Fn+F4 é mostrado como
