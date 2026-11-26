@@ -33,9 +33,12 @@ pub fn iniciar(ui: Rc<Ui>, prefixo: String) {
             println!("sem teclado: só a tela de espera");
         }
         fotografar(&ui, &prefixo, "luz", "luz").await;
+        ui.luz.aba_lateral.set_active(true);
+        fotografar(&ui, &prefixo, "luz", "luz-lateral").await;
         ui.luz.ap_cor_led.grab_focus();
         fotografar(&ui, &prefixo, "luz", "luz-fim").await;
         ui.luz.pagina.scroll_to_top();
+        ui.luz.aba_teclas.set_active(true);
         fotografar(&ui, &prefixo, "disp", "disp").await;
         ui.mostrar_sobre();
         fotografar(&ui, &prefixo, "disp", "sobre").await;
@@ -105,9 +108,11 @@ async fn redimensionar(ui: &Rc<Ui>, prefixo: &str) {
         ui.mudar_modo(Modo::Atuacao);
         fotografar(ui, prefixo, "luz", &format!("{nome}-luz")).await;
         if (largura, altura) == (LARGURA_MIN, ALTURA_MIN) {
+            ui.luz.aba_lateral.set_active(true);
             ui.luz.ap_cor_led.grab_focus();
             fotografar(ui, prefixo, "luz", &format!("{nome}-luz-fim")).await;
             ui.luz.pagina.scroll_to_top();
+            ui.luz.aba_teclas.set_active(true);
         }
         fotografar(ui, prefixo, "disp", &format!("{nome}-disp")).await;
     }
