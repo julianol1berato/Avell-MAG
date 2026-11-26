@@ -1,5 +1,5 @@
-//! Janela "Sobre": uma abertura animada no estilo dos keygens antigos (letreiro em blocos com as
-//! cores correndo, estrelas e um texto que passa ondulando) e, embaixo, o essencial do projeto.
+//! Janela "Sobre": uma abertura animada no estilo dos keygens antigos (letreiro em blocos, parado,
+//! com um brilho verde correndo, estrelas e barras de luz) e, embaixo, o essencial do projeto.
 
 use std::f64::consts::TAU;
 
@@ -9,7 +9,7 @@ use gtk::{cairo, gio};
 use crate::ui::{Ui, AUTOR_E_CIDADE};
 
 const LARGURA: i32 = 520;
-const ALTURA: i32 = 230;
+const ALTURA: i32 = 190;
 const VERSAO: &str = env!("CARGO_PKG_VERSION");
 const REPOSITORIO: &str = env!("CARGO_PKG_REPOSITORY");
 
@@ -22,20 +22,10 @@ const LETREIRO: [[u8; 7]; 5] = [
     [0b01110, 0b10001, 0b00001, 0b00110, 0b01000, 0b10000, 0b11111], // 2
 ];
 
-/// Texto que passa embaixo, sem acentos, como nas aberturas antigas.
-fn texto_que_passa() -> String {
-    format!(
-        "MAG82 PARA LINUX v{VERSAO}  ***  O CONFIGURADOR QUE FALTAVA PARA O AVELL VOLCANO'S MAG82  ***  \
-         DESENVOLVIMENTO INDEPENDENTE  ***  JULIANO LIBERATO - JOINVILLE - SC  ***  \
-         SEM VINCULO COM A AVELL  ***  CODIGO ABERTO, LICENCA MIT  ***  \
-         SALVE PARA QUEM USA, TESTA E CONTRIBUI  ***          "
-    )
-}
-
-/// Cor do arco-íris: `tom` de 0 a 1 dá a volta completa.
-fn arco_iris(tom: f64, brilho: f64) -> (f64, f64, f64) {
-    let canal = |desvio: f64| (0.5 + 0.5 * (TAU * (tom + desvio)).cos()) * brilho;
-    (canal(0.0), canal(-1.0 / 3.0), canal(-2.0 / 3.0))
+/// Verde de monitor de fósforo: `fase` de 0 a 1 vai do verde escuro ao quase branco e volta.
+fn fosforo(fase: f64) -> (f64, f64, f64) {
+    let brilho = 0.5 + 0.5 * (TAU * fase).cos();
+    (0.55 * brilho * brilho, 0.42 + 0.58 * brilho, 0.12 + 0.5 * brilho * brilho)
 }
 
 /// Número pseudoaleatório fixo entre 0 e 1 para a estrela `i` (as estrelas não mudam entre quadros).
@@ -75,8 +65,8 @@ fn desenhar(cr: &cairo::Context, largura: f64, altura: f64, t: f64) {
 
     // barras de cor subindo e descendo atrás do letreiro
     for barra in 0..3 {
-        let centro = altura * 0.42 + (t * 1.3 + f64::from(barra) * 0.9).sin() * altura * 0.24;
-        let (r, g, b) = arco_iris(t * 0.07 + f64::from(barra) / 3.0, 1.0);
+        let centro = altura * 0.44 + (t * 1.3 + f64::from(barra) * 0.9).sin() * altura * 0.24;
+        let (r, g, b) = fosforo(t * 0.07 + f64::from(barra) / 3.0);
         let faixa = cairo::LinearGradient::new(0.0, centro - 9.0, 0.0, centro + 9.0);
         faixa.add_color_stop_rgba(0.0, r, g, b, 0.0);
         faixa.add_color_stop_rgba(0.5, r, g, b, 0.38);
@@ -86,11 +76,11 @@ fn desenhar(cr: &cairo::Context, largura: f64, altura: f64, t: f64) {
         let _ = cr.fill();
     }
 
-    // letreiro em blocos: cada coluna ondula e as cores correm na diagonal
+    // letreiro em blocos, parado: só o brilho corre, na diagonal
     let ponto = 11.0;
     let (colunas, vao) = (5.0, 1.4);
     let total = ponto * (LETREIRO.len() as f64 * colunas + (LETREIRO.len() as f64 - 1.0) * vao);
-    let (x0, y0) = ((largura - total) / 2.0, altura * 0.42 - ponto * 3.5);
+    let (x0, y0) = ((largura - total) / 2.0, altura * 0.44 - ponto * 3.5);
     for sombra in [true, false] {
         for (l, letra) in LETREIRO.iter().enumerate() {
             for (linha, bits) in letra.iter().enumerate() {
@@ -99,12 +89,12 @@ fn desenhar(cr: &cairo::Context, largura: f64, altura: f64, t: f64) {
                         continue;
                     }
                     let x = x0 + (l as f64 * (colunas + vao) + f64::from(coluna)) * ponto;
-                    let y = y0 + linha as f64 * ponto + (t * 2.6 + x * 0.012).sin() * 4.5;
+                    let y = y0 + linha as f64 * ponto;
                     if sombra {
                         cr.set_source_rgba(0.0, 0.0, 0.0, 0.7);
                         cr.rectangle(x + 4.0, y + 4.0, ponto - 1.5, ponto - 1.5);
                     } else {
-                        let (r, g, b) = arco_iris(t * 0.25 - x * 0.0016 - linha as f64 * 0.045, 1.0);
+                        let (r, g, b) = fosforo(t * 0.25 - x * 0.0016 - linha as f64 * 0.045);
                         cr.set_source_rgb(r, g, b);
                         cr.rectangle(x, y, ponto - 1.5, ponto - 1.5);
                     }
@@ -117,30 +107,11 @@ fn desenhar(cr: &cairo::Context, largura: f64, altura: f64, t: f64) {
     // subtítulo fixo
     cr.select_font_face("monospace", cairo::FontSlant::Normal, cairo::FontWeight::Bold);
     cr.set_font_size(13.0);
-    let sub = format!("P A R A   L I N U X   ·   v{VERSAO}");
+    let sub = format!("9level.com.br - v{VERSAO}");
     if let Ok(medida) = cr.text_extents(&sub) {
-        cr.set_source_rgb(0.75, 0.8, 0.9);
-        cr.move_to((largura - medida.width()) / 2.0, altura * 0.42 + ponto * 3.5 + 30.0);
+        cr.set_source_rgb(0.55, 0.95, 0.65);
+        cr.move_to((largura - medida.width()) / 2.0, altura * 0.44 + ponto * 3.5 + 30.0);
         let _ = cr.show_text(&sub);
-    }
-
-    // texto que passa embaixo, cada letra numa altura da onda
-    cr.set_font_size(17.0);
-    let passo = cr.text_extents("M").map(|m| m.x_advance()).unwrap_or(10.0);
-    let texto: Vec<char> = texto_que_passa().chars().collect();
-    let comprimento = texto.len() as f64 * passo;
-    let inicio = largura - (t * 95.0).rem_euclid(comprimento + largura);
-    let mut um = [0u8; 4];
-    for (i, letra) in texto.iter().enumerate() {
-        let x = inicio + i as f64 * passo;
-        if x < -passo || x > largura {
-            continue;
-        }
-        let y = altura - 22.0 + (t * 4.2 + x * 0.03).sin() * 7.0;
-        let (r, g, b) = arco_iris(x * 0.0022 + t * 0.12, 1.0);
-        cr.set_source_rgb(0.35 + 0.65 * r, 0.35 + 0.65 * g, 0.35 + 0.65 * b);
-        cr.move_to(x, y);
-        let _ = cr.show_text(letra.encode_utf8(&mut um));
     }
 }
 

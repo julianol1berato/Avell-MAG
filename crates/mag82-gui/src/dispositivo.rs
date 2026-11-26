@@ -53,13 +53,7 @@ impl PainelDisp {
         linha_cal.add_suffix(&calibrar);
         g_cal.add(&linha_cal);
 
-        // quem fez o programa, logo depois das informações do teclado
         let g_programa = adw::PreferencesGroup::builder().title("Sobre o programa").build();
-        let autoria = adw::ActionRow::builder()
-            .title("Desenvolvimento independente")
-            .subtitle(crate::ui::AUTOR_E_CIDADE)
-            .css_classes(["property"])
-            .build();
         let linha_site = adw::ActionRow::builder()
             .title("9level.com.br")
             .subtitle("Conheça o trabalho do autor")
@@ -72,7 +66,6 @@ impl PainelDisp {
             .activatable(true)
             .build();
         linha_sobre.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
-        g_programa.add(&autoria);
         g_programa.add(&linha_site);
         g_programa.add(&linha_sobre);
 
