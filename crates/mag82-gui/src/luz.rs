@@ -192,7 +192,9 @@ pub struct PainelLuz {
 
     // ----- cor fixa por LED da faixa lateral -----
     g_leds: adw::PreferencesGroup,
-    faixa: gtk::Box,
+    /// Os botões dos LEDs, em duas colunas, como as duas laterais do teclado.
+    coluna_esq: gtk::Box,
+    coluna_dir: gtk::Box,
     /// Um botão por LED, criados quando se sabe quantos LEDs o teclado tem.
     pub led_btns: RefCell<Vec<gtk::ToggleButton>>,
     css_leds: gtk::CssProvider,
@@ -209,7 +211,7 @@ impl PainelLuz {
         let g_previa = adw::PreferencesGroup::builder()
             .title("Demonstração")
             .description(
-                "O que o teclado está mostrando agora; a faixa de baixo é a luz lateral. \
+                "O que o teclado está mostrando agora; as barras dos dois lados são a luz lateral. \
                  Os efeitos de acionamento só acendem ao digitar.",
             )
             .build();
@@ -223,9 +225,39 @@ impl PainelLuz {
         // cor fixa por LED: a faixa é uma fileira de botões, um por LED
         let g_leds = adw::PreferencesGroup::builder()
             .title("Cores fixas da lateral")
-            .description("Clique nos LEDs da faixa e aplique uma cor: eles ficam nessa cor, por cima do efeito")
+            .description(
+                "Os LEDs ficam nas duas laterais do teclado, como aqui. Clique neles e aplique uma cor: \
+                 eles ficam nessa cor, por cima do efeito",
+            )
             .build();
-        let faixa = gtk::Box::builder().homogeneous(true).spacing(2).build();
+        let coluna = || gtk::Box::builder().orientation(gtk::Orientation::Vertical).homogeneous(true).spacing(2).build();
+        let (coluna_esq, coluna_dir) = (coluna(), coluna());
+        // entre as colunas, um teclado esquemático com os cantos nomeados, para a pessoa se achar
+        let miolo = gtk::Grid::builder().hexpand(true).css_classes(["painel-teclado"]).build();
+        let canto = |texto: &str, direita: bool, embaixo: bool| {
+            gtk::Label::builder()
+                .label(texto)
+                .css_classes(["dim-label", "caption"])
+                .hexpand(true)
+                .halign(if direita { gtk::Align::End } else { gtk::Align::Start })
+                .valign(if embaixo { gtk::Align::End } else { gtk::Align::Start })
+                .build()
+        };
+        miolo.attach(&canto("Esc", false, false), 0, 0, 1, 1);
+        miolo.attach(&canto("Knob", true, false), 1, 0, 1, 1);
+        miolo.attach(
+            &gtk::Label::builder().label("Teclado visto de cima").css_classes(["dim-label"]).vexpand(true).build(),
+            0,
+            1,
+            2,
+            1,
+        );
+        miolo.attach(&canto("Ctrl", false, true), 0, 2, 1, 1);
+        miolo.attach(&canto("Setas", true, true), 1, 2, 1, 1);
+        let faixa = gtk::Box::builder().spacing(8).build();
+        faixa.append(&coluna_esq);
+        faixa.append(&miolo);
+        faixa.append(&coluna_dir);
         let cor_led = botao_cor();
         cor_led.set_rgba(&para_rgba(Rgb(255, 0, 0)));
         let todos_leds = botao("Todos", false);
@@ -287,7 +319,8 @@ impl PainelLuz {
             aba_lateral,
             tem_lateral: Cell::new(false),
             g_leds,
-            faixa,
+            coluna_esq,
+            coluna_dir,
             led_btns: RefCell::new(Vec::new()),
             css_leds,
             cor_led,
@@ -360,7 +393,9 @@ impl Ui {
         let mut botoes = p.led_btns.borrow_mut();
         if botoes.len() != total {
             for b in botoes.drain(..) {
-                p.faixa.remove(&b);
+                if let Some(coluna) = b.parent().and_downcast::<gtk::Box>() {
+                    coluna.remove(&b);
+                }
             }
             for i in 0..total {
                 let b = gtk::ToggleButton::builder()
@@ -368,7 +403,11 @@ impl Ui {
                     .name(format!("led{i}"))
                     .tooltip_text(format!("LED {}", i + 1))
                     .build();
-                p.faixa.append(&b);
+                // na coluna esquerda os LEDs sobem (o 1 fica embaixo); na direita, descem
+                match mag82::posicao_do_led_lateral(i, total).0 {
+                    mag82::Lado::Esquerdo => p.coluna_esq.prepend(&b),
+                    mag82::Lado::Direito => p.coluna_dir.append(&b),
+                }
                 botoes.push(b);
             }
         }
@@ -529,10 +568,13 @@ impl Ui {
         let teclas = d.retangulos();
         let total_x = teclas.values().map(|r| r.0 + r.2).fold(1.0, f64::max);
         let teclado_y = teclas.values().map(|r| r.1 + r.3).fold(1.0, f64::max);
-        // a faixa lateral ocupa meia tecla de altura, com um respiro, embaixo do teclado
-        let total_y = if d.lateral.is_some() { teclado_y + 0.9 } else { teclado_y };
+        // a luz lateral são duas barras, uma de cada lado do teclado
+        let margem = if d.lateral.is_some() { 0.75 } else { 0.0 };
+        let (teclado_x, total_y) = (total_x, teclado_y);
+        let total_x = teclado_x + 2.0 * margem;
         let u = (largura / total_x).min(altura / total_y);
-        let (x0, y0) = ((largura - total_x * u) / 2.0, (altura - total_y * u) / 2.0);
+        let (borda, y0) = ((largura - total_x * u) / 2.0, (altura - total_y * u) / 2.0);
+        let x0 = borda + margem * u;
         let folga = u * 0.07;
         // LED apagado aparece como peça escura, não como buraco
         let pintar = |x: f64, y: f64, l: f64, a: f64, raio: f64, c: Rgb| {
@@ -552,11 +594,16 @@ impl Ui {
         }
         if let Some(lateral) = &d.lateral {
             let n = (lateral.area.linhas as usize * lateral.area.colunas as usize).max(1);
-            let passo = total_x * u / n as f64;
-            let y = y0 + (teclado_y + 0.4) * u;
+            let passo = teclado_y * u / n.div_ceil(2) as f64;
             for i in 0..n {
                 let cor = leds.as_ref().map_or(Rgb(0, 0, 0), |g| g.cor_do_led(i));
-                pintar(x0 + i as f64 * passo + passo * 0.08, y, passo * 0.84, u * 0.4, u * 0.1, cor);
+                let (lado, altura) = mag82::posicao_do_led_lateral(i, n);
+                let x = match lado {
+                    mag82::Lado::Esquerdo => borda,
+                    mag82::Lado::Direito => x0 + (teclado_x + margem - 0.4) * u,
+                };
+                let y = y0 + altura * teclado_y * u - passo / 2.0;
+                pintar(x, y + passo * 0.08, u * 0.4, passo * 0.84, u * 0.1, cor);
             }
         }
     }

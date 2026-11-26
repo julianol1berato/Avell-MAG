@@ -27,7 +27,7 @@ const CSS_BASE: &str = "
 .tecla .sub { font-size: 9px; font-weight: 400; opacity: 0.8; }
 .painel-teclado { padding: 12px; border-radius: 14px; background: alpha(@window_fg_color, 0.06); }
 .legenda { font-size: 12px; opacity: 0.75; }
-.led { padding: 0; min-width: 0; min-height: 30px; border-radius: 5px; }
+.led { padding: 0; min-width: 56px; min-height: 18px; border-radius: 5px; }
 .led:checked { outline: 2px solid @accent_color; outline-offset: -2px; }
 .legenda-rt { color: @accent_color; font-weight: 900; }
 .legenda-socd { color: @warning_color; font-weight: 900; }

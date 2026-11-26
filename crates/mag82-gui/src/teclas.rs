@@ -56,18 +56,20 @@ pub struct Predef {
     valores: &'static [(Campo, u16)],
 }
 
+// Competitivo e Digitação definem o ponto de atuação e tudo do Rapid Trigger; as zonas mortas
+// são de cada tecla e ficam como estão. Só o padrão de fábrica define todos os campos.
 pub const PREDEFS: [Predef; 3] = [
     Predef {
         nome: "Competitivo",
         dica: "Atuação em 0,50 mm e Rapid Trigger de 0,15 mm: resposta rápida para jogos (WASD)",
         rt: true,
-        valores: &[(Campo::Ponto, 500), (Campo::RtPress, 150), (Campo::RtSolta, 150)],
+        valores: &[(Campo::Ponto, 500), (Campo::RtInicio, 500), (Campo::RtPress, 150), (Campo::RtSolta, 150)],
     },
     Predef {
         nome: "Digitação",
         dica: "Atuação em 2,20 mm, sem Rapid Trigger: evita toques acidentais",
         rt: false,
-        valores: &[(Campo::Ponto, 2200)],
+        valores: &[(Campo::Ponto, 2200), (Campo::RtInicio, 500), (Campo::RtPress, 300), (Campo::RtSolta, 300)],
     },
     Predef {
         nome: "Padrão de fábrica",
@@ -967,10 +969,14 @@ impl Ui {
         }
     }
 
-    /// Preenche os campos com uma predefinição. Fica tudo marcado como editado, à espera do Aplicar.
+    /// Preenche os campos com uma predefinição. Os campos dela ficam marcados como editados, à
+    /// espera do Aplicar; os que ela não define voltam a mostrar o valor das teclas selecionadas,
+    /// sem sobra de uma edição ou predefinição anterior.
     pub fn usar_predef(&self, indice: usize) {
         let Some(p) = PREDEFS.get(indice) else { return };
         let t = &self.tec;
+        self.esquecer_edicoes();
+        self.atualizar_painel();
         self.silencioso(|| {
             t.rt.set_active(p.rt);
             for (campo, valor) in p.valores {
@@ -1292,6 +1298,10 @@ mod testes {
             for (campo, valor) in p.valores {
                 assert!(*valor >= campo.minimo() && *valor <= mag82::CURSO_MAX, "{}: {:?}", p.nome, campo);
                 assert!(CAMPOS.iter().any(|(c, _)| c == campo), "{}: {:?} sem controle na tela", p.nome, campo);
+            }
+            // toda predefinição decide o ponto de atuação e tudo do Rapid Trigger
+            for campo in [Campo::Ponto].into_iter().chain(CAMPOS_RT) {
+                assert!(p.valores.iter().any(|(c, _)| *c == campo), "{}: falta {:?}", p.nome, campo);
             }
         }
     }

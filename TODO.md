@@ -21,8 +21,7 @@
 
 - [ ] Seleção por arrasto e atalhos (Ctrl+A, Esc, F5) não têm teste automático: o autoteste não
       simula mouse nem teclado. Só a conta de quais teclas o retângulo toca tem teste unitário.
-- [ ] Luz lateral: os efeitos 6 a 10 não têm nome oficial e aparecem como "Efeito N"; a faixa de
-      LEDs é desenhada em linha reta, sem saber como eles se distribuem pelas laterais do teclado.
+- [ ] Luz lateral: os efeitos 6 a 10 não têm nome oficial e aparecem como "Efeito N".
 - [ ] Recursos do configurador oficial que ainda não existem aqui: macros e as teclas avançadas
       MPT, MT, TGL, END e RS (o DKS e o SOCD já existem).
 - [ ] Knob: girar envia volume + e volume -, apertar envia mudo. Não dá para trocar pelo layout:
