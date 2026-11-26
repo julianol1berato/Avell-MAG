@@ -143,6 +143,8 @@ pub fn linha_escala(titulo: &str) -> (adw::ActionRow, gtk::Scale) {
 
 /// Página rolável com o conteúdo centralizado e largura limitada.
 pub fn rolavel(conteudo: &impl IsA<gtk::Widget>, largura: i32) -> gtk::ScrolledWindow {
-    let limite = adw::Clamp::builder().child(conteudo).maximum_size(largura).margin_top(6).margin_bottom(18).margin_start(12).margin_end(12).build();
+    // sem a faixa de transição do Clamp: todos os painéis ficam com a mesma largura, e não uma que
+    // depende do conteúdo de cada um
+    let limite = adw::Clamp::builder().child(conteudo).maximum_size(largura).tightening_threshold(largura).margin_top(6).margin_bottom(18).margin_start(12).margin_end(12).build();
     gtk::ScrolledWindow::builder().child(&limite).hscrollbar_policy(gtk::PolicyType::Never).vexpand(true).build()
 }

@@ -53,13 +53,7 @@ impl PainelDisp {
         linha_cal.add_suffix(&calibrar);
         g_cal.add(&linha_cal);
 
-        // quem fez o programa, logo depois das informações do teclado
         let g_programa = adw::PreferencesGroup::builder().title("Sobre o programa").build();
-        let autoria = adw::ActionRow::builder()
-            .title("Desenvolvimento independente")
-            .subtitle(crate::ui::AUTOR_E_CIDADE)
-            .css_classes(["property"])
-            .build();
         let linha_site = adw::ActionRow::builder()
             .title("9level.com.br")
             .subtitle("Conheça o trabalho do autor")
@@ -68,11 +62,10 @@ impl PainelDisp {
         linha_site.add_suffix(&gtk::Image::from_icon_name("adw-external-link-symbolic"));
         let linha_sobre = adw::ActionRow::builder()
             .title("Sobre o MAG82 para Linux")
-            .subtitle(concat!("Versão ", env!("CARGO_PKG_VERSION"), ", novidades e como contribuir"))
+            .subtitle(concat!("Versão ", env!("CARGO_PKG_VERSION"), ", código-fonte e como contribuir"))
             .activatable(true)
             .build();
         linha_sobre.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
-        g_programa.add(&autoria);
         g_programa.add(&linha_site);
         g_programa.add(&linha_sobre);
 

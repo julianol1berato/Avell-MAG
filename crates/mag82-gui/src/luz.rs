@@ -228,8 +228,10 @@ impl PainelLuz {
         let faixa = gtk::Box::builder().homogeneous(true).spacing(2).build();
         let cor_led = botao_cor();
         cor_led.set_rgba(&para_rgba(Rgb(255, 0, 0)));
-        let todos_leds = botao("Selecionar todos", false);
-        let nenhum_led = botao("Limpar seleção", false);
+        let todos_leds = botao("Todos", false);
+        todos_leds.set_tooltip_text(Some("Selecionar todos os LEDs"));
+        let nenhum_led = botao("Limpar", false);
+        nenhum_led.set_tooltip_text(Some("Limpar a seleção"));
         let tira_cor_led = botao("Voltar ao efeito", false);
         let ap_cor_led = botao("Aplicar cor", true);
         let selecao = gtk::Box::builder().spacing(8).hexpand(true).build();

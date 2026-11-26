@@ -283,44 +283,6 @@ impl Ui {
         });
     }
 
-    pub fn mostrar_sobre(&self) {
-        let sobre = adw::AboutDialog::builder()
-            .application_name("MAG82 para Linux")
-            .application_icon("io.github.mag82linux")
-            .version(env!("CARGO_PKG_VERSION"))
-            .developer_name(AUTOR_E_CIDADE)
-            .comments(
-                "Tudo o que o Avell Volcano's MAG82 faz, agora no Linux: atuação e Rapid Trigger por tecla, \
-                 remapeamento, SOCD, luzes das teclas e da lateral, perfis e calibração.\n\n\
-                 O teclado só tinha aplicativo para Windows. Este programa foi escrito do zero, de forma \
-                 independente, para quem usa Linux não ficar de fora.\n\n\
-                 Desenvolvimento independente, sem vínculo com a Avell.",
-            )
-            .website(SITE_AUTOR)
-            .support_url(concat!(env!("CARGO_PKG_REPOSITORY"), "#readme"))
-            .issue_url(concat!(env!("CARGO_PKG_REPOSITORY"), "/issues"))
-            .developers(["Juliano Liberato https://9level.com.br"])
-            .copyright("© 2026 Juliano Liberato · Joinville - SC")
-            .license_type(gtk::License::MitX11)
-            .release_notes_version(env!("CARGO_PKG_VERSION"))
-            .release_notes(
-                "<p>Primeira versão pública.</p>\
-                 <ul>\
-                 <li>Atuação, Rapid Trigger e zonas mortas por tecla, com predefinições</li>\
-                 <li>Remapeamento, SOCD e cor fixa por tecla</li>\
-                 <li>Efeitos e paleta das teclas e da faixa lateral, com demonstração ao vivo</li>\
-                 <li>Perfis, taxa de resposta e calibração com registro</li>\
-                 <li>Pacotes para Ubuntu, Debian e Fedora</li>\
-                 </ul>",
-            )
-            .build();
-        sobre.add_link("9level.com.br — site do autor", SITE_AUTOR);
-        sobre.add_link("Juliano Liberato no GitHub", "https://github.com/julianol1berato");
-        sobre.add_link("Código-fonte do projeto", env!("CARGO_PKG_REPOSITORY"));
-        sobre.add_link("Como contribuir", concat!(env!("CARGO_PKG_REPOSITORY"), "/blob/main/CONTRIBUTING.md"));
-        sobre.present(Some(&self.janela));
-    }
-
     // ---------- infraestrutura ----------
 
     pub fn avisar(&self, texto: &str) {

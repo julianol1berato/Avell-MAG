@@ -263,10 +263,10 @@ impl Teclas {
             .ellipsize(gtk::pango::EllipsizeMode::End)
             .css_classes(["title-4"])
             .build();
-        let todas = botao("Selecionar todas", false);
-        todas.set_tooltip_text(Some("Ctrl+A"));
-        let nenhuma = botao("Limpar seleção", false);
-        nenhuma.set_tooltip_text(Some("Esc"));
+        let todas = botao("Todas", false);
+        todas.set_tooltip_text(Some("Selecionar todas as teclas (Ctrl+A)"));
+        let nenhuma = botao("Limpar", false);
+        nenhuma.set_tooltip_text(Some("Limpar a seleção (Esc)"));
 
         // ----- seletor de modo -----
         let seletor = gtk::Box::builder().css_classes(["linked"]).valign(gtk::Align::Center).build();
@@ -829,7 +829,12 @@ impl Ui {
             1 => rotulo(&d.nomes[&sel[0]]),
             n => format!("{n} teclas selecionadas"),
         });
-        t.todas.set_visible(modo.limite().is_none());
+        // Nos modos de uma ou duas teclas o botão "Todas" não serve, mas continua ocupando o lugar
+        // dele: se sumisse, a linha mudaria de tamanho a cada troca de modo.
+        let serve = modo.limite().is_none();
+        t.todas.set_opacity(if serve { 1.0 } else { 0.0 });
+        t.todas.set_can_target(serve);
+        t.todas.set_can_focus(serve);
         t.nenhuma.set_sensitive(!sel.is_empty());
         t.g_atu.set_sensitive(!sel.is_empty());
         t.g_cor.set_sensitive(!sel.is_empty());
