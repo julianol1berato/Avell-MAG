@@ -18,6 +18,8 @@ BuildRequires:  pkgconfig(gtk4) >= 4.12
 BuildRequires:  pkgconfig(libadwaita-1) >= 1.5
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  desktop-file-utils
+# pkexec: pede a senha de administrador quando o programa instala uma versão nova
+Recommends:     polkit
 
 %global debug_package %{nil}
 

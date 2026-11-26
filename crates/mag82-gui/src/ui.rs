@@ -72,6 +72,11 @@ pub struct Ui {
     pub luz: PainelLuz,
     pub disp: PainelDisp,
     pub cal: Calibracao,
+
+    /// Faixa no topo da janela que anuncia uma versão nova do programa.
+    pub faixa_atualizacao: adw::Banner,
+    pub fase_atualizacao: Cell<crate::atualizacao::Fase>,
+    pub versao_nova: RefCell<Option<crate::atualizacao::Versao>>,
 }
 
 impl Ui {
@@ -121,6 +126,8 @@ impl Ui {
         avisos.set_child(Some(&raiz));
         let visao = adw::ToolbarView::new();
         visao.add_top_bar(&barra);
+        let faixa_atualizacao = adw::Banner::new("");
+        visao.add_top_bar(&faixa_atualizacao);
         visao.set_content(Some(&avisos));
         // em janela estreita as abas saem do título e vão para uma barra embaixo
         let abas_embaixo = adw::ViewSwitcherBar::builder().stack(&pilha).build();
@@ -162,6 +169,9 @@ impl Ui {
             luz,
             disp,
             cal: Calibracao::default(),
+            faixa_atualizacao,
+            fase_atualizacao: Cell::default(),
+            versao_nova: RefCell::new(None),
         });
 
         // Encerramento pedido pelo sistema (fim de sessão, desligar, Ctrl+C): encerra a calibração,
@@ -211,6 +221,7 @@ impl Ui {
         crate::teclas::ligar(&ui);
         crate::luz::ligar(&ui);
         crate::dispositivo::ligar(&ui);
+        crate::atualizacao::ligar(&ui);
         Ui::ligar_atalhos(&ui);
 
         // o teclado pode ser conectado, desconectado ou trocar de perfil sem o programa saber
@@ -246,7 +257,7 @@ impl Ui {
 
     /// Sai do programa a pedido do sistema. Fechar a janela não basta: com um diálogo aberto,
     /// o pedido de fechar só fecha o diálogo. Antes de sair, encerra a calibração, se houver.
-    fn encerrar_programa(self: &Rc<Self>) {
+    pub(crate) fn encerrar_programa(self: &Rc<Self>) {
         self.concluir_calibracao();
         let ui = self.clone();
         glib::spawn_future_local(async move {

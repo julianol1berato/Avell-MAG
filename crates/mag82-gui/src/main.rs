@@ -4,9 +4,11 @@
 //! - `dados`: tudo o que foi lido do teclado;
 //! - `ui`: janela, conexão e vigilância (conectar/desconectar, troca de perfil no teclado);
 //! - `teclas`, `luz`, `dispositivo`: uma página cada;
+//! - `atualizacao`: procura, baixa e instala versões novas do programa;
 //! - `calibracao`: diálogo de calibração das teclas;
 //! - `teste`: autoteste acionado pela variável `MAG82_TESTE`.
 
+mod atualizacao;
 mod calibracao;
 mod dados;
 mod dispositivo;
@@ -31,6 +33,8 @@ fn main() -> glib::ExitCode {
         ui.janela.present();
         if let Ok(prefixo) = std::env::var("MAG82_TESTE") {
             teste::iniciar(ui, prefixo);
+        } else {
+            ui.atualizacao_ao_abrir();
         }
     });
     app.run()

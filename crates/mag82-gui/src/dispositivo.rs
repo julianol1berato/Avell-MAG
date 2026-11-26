@@ -11,6 +11,8 @@ pub struct PainelDisp {
     linha_site: adw::ActionRow,
     linha_sobre: adw::ActionRow,
     calibrar: gtk::Button,
+    pub atualizar_auto: adw::SwitchRow,
+    pub procurar_atualizacao: adw::ActionRow,
     pub taxa: adw::ComboRow,
     pub nome_perfil: adw::EntryRow,
     info: Vec<adw::ActionRow>,
@@ -74,13 +76,28 @@ impl PainelDisp {
         g_programa.add(&linha_site);
         g_programa.add(&linha_sobre);
 
+        let g_atualizacao = adw::PreferencesGroup::builder().title("Atualizações").build();
+        let atualizar_auto = adw::SwitchRow::builder()
+            .title("Procurar atualizações ao abrir")
+            .subtitle("Consulta a página de versões do projeto no GitHub, no máximo uma vez por dia. Nada é instalado sem você aceitar")
+            .build();
+        let procurar_atualizacao = adw::ActionRow::builder()
+            .title("Procurar atualizações agora")
+            .subtitle(concat!("Versão instalada: ", env!("CARGO_PKG_VERSION")))
+            .activatable(true)
+            .build();
+        procurar_atualizacao.add_suffix(&gtk::Image::from_icon_name("software-update-available-symbolic"));
+        g_atualizacao.add(&atualizar_auto);
+        g_atualizacao.add(&procurar_atualizacao);
+
         let pagina = adw::PreferencesPage::new();
         pagina.add(&g_perfil);
         pagina.add(&g_desemp);
         pagina.add(&g_cal);
         pagina.add(&g_sobre);
+        pagina.add(&g_atualizacao);
         pagina.add(&g_programa);
-        (Self { linha_site, linha_sobre, calibrar, taxa, nome_perfil, info }, pagina)
+        (Self { linha_site, linha_sobre, calibrar, atualizar_auto, procurar_atualizacao, taxa, nome_perfil, info }, pagina)
     }
 }
 

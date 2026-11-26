@@ -38,6 +38,7 @@ Architecture: $ARQ
 Maintainer: Juliano Liberato <juliano@9level.com.br>
 Installed-Size: $TAMANHO
 Depends: $DEPS
+Recommends: pkexec | policykit-1
 Section: utils
 Priority: optional
 Homepage: https://github.com/julianol1berato/Avell-MAG
