@@ -681,6 +681,48 @@ impl Rgb {
     pub fn hex(&self) -> String {
         format!("#{:02x}{:02x}{:02x}", self.0, self.1, self.2)
     }
+
+    /// Nome aproximado da cor, para quem não lê hexadecimal ("Laranja", "Azul claro").
+    pub fn nome(&self) -> String {
+        let (r, g, b) = (f32::from(self.0), f32::from(self.1), f32::from(self.2));
+        let (max, min) = (r.max(g).max(b), r.min(g).min(b));
+        let brilho = max / 255.0;
+        let saturacao = if max == 0.0 { 0.0 } else { (max - min) / max };
+        if brilho < 0.12 {
+            return "Preto".into();
+        }
+        if saturacao < 0.12 {
+            return if brilho > 0.85 { "Branco" } else { "Cinza" }.into();
+        }
+        let d = max - min;
+        let tom = 60.0
+            * if max == r {
+                ((g - b) / d).rem_euclid(6.0)
+            } else if max == g {
+                (b - r) / d + 2.0
+            } else {
+                (r - g) / d + 4.0
+            };
+        let base = match tom {
+            t if t < 15.0 => "Vermelho",
+            t if t < 42.0 => "Laranja",
+            t if t < 70.0 => "Amarelo",
+            t if t < 160.0 => "Verde",
+            t if t < 200.0 => "Ciano",
+            t if t < 260.0 => "Azul",
+            t if t < 295.0 => "Roxo",
+            t if t < 320.0 => "Magenta",
+            t if t < 345.0 => "Rosa",
+            _ => "Vermelho",
+        };
+        if brilho < 0.55 {
+            format!("{base} escuro")
+        } else if saturacao < 0.5 {
+            format!("{base} claro")
+        } else {
+            base.into()
+        }
+    }
 }
 
 /// Paleta de 8 cores; cada uma ocupa 4 bytes (B, G, R e um byte que o teclado devolve e preservamos).
@@ -1075,6 +1117,35 @@ pub fn codigo_tecla(nome: &str) -> Option<u16> {
         return u16::from_str_radix(h, 16).ok();
     }
     funcoes().into_iter().find(|(_, n)| *n == nome).map(|(c, _)| c)
+}
+
+#[cfg(test)]
+mod testes_cor {
+    use super::Rgb;
+
+    #[test]
+    fn nome_das_cores() {
+        let nome = |h: &str| Rgb::de_hex(h).unwrap().nome();
+        for (hex, esperado) in [
+            ("ff0000", "Vermelho"),
+            ("ff8800", "Laranja"),
+            ("ffff00", "Amarelo"),
+            ("00ff00", "Verde"),
+            ("00ffff", "Ciano"),
+            ("0000ff", "Azul"),
+            ("8000ff", "Roxo"),
+            ("ff00ff", "Magenta"),
+            ("ff0080", "Rosa"),
+            ("ff0010", "Vermelho"),
+            ("ffffff", "Branco"),
+            ("808080", "Cinza"),
+            ("000000", "Preto"),
+            ("000080", "Azul escuro"),
+            ("a0c0ff", "Azul claro"),
+        ] {
+            assert_eq!(nome(hex), esperado, "{hex}");
+        }
+    }
 }
 
 #[cfg(test)]

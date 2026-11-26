@@ -304,7 +304,7 @@ fn executar(args: Args) -> Resultado<()> {
                 paleta = t.paleta()?;
             }
             for i in 0..8 {
-                println!("cor {i}: {}", paleta.cor(i).hex());
+                println!("cor {i}: {}  {}", paleta.cor(i).hex(), paleta.cor(i).nome());
             }
         }
         Comando::Cor { teclas, lateral: true, cor, limpar } => {
