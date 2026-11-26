@@ -137,6 +137,12 @@ pub struct PainelLuz {
     previa_lateral: RefCell<Option<Grade>>,
     previa_pendente: Cell<bool>,
 
+    // ----- abas: os ajustes das teclas e os da lateral não aparecem ao mesmo tempo -----
+    g_abas: adw::PreferencesGroup,
+    pub aba_teclas: gtk::ToggleButton,
+    pub aba_lateral: gtk::ToggleButton,
+    tem_lateral: Cell<bool>,
+
     // ----- cor fixa por LED da faixa lateral -----
     g_leds: adw::PreferencesGroup,
     faixa: gtk::Box,
@@ -203,8 +209,17 @@ impl PainelLuz {
             gtk::style_context_add_provider_for_display(&tela, &css_leds, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
         }
 
+        let aba_teclas = gtk::ToggleButton::builder().label("Teclas").active(true).hexpand(true).build();
+        let aba_lateral = gtk::ToggleButton::builder().label("Lateral").group(&aba_teclas).hexpand(true).build();
+        let abas = gtk::Box::builder().css_classes(["linked"]).build();
+        abas.append(&aba_teclas);
+        abas.append(&aba_lateral);
+        let g_abas = adw::PreferencesGroup::new();
+        g_abas.add(&abas);
+
         let pagina = adw::PreferencesPage::new();
         pagina.add(&g_previa);
+        pagina.add(&g_abas);
         pagina.add(&teclas.g_efeito);
         pagina.add(&teclas.g_paleta);
         pagina.add(&lateral.g_efeito);
@@ -218,6 +233,10 @@ impl PainelLuz {
             previa: RefCell::new(None),
             previa_lateral: RefCell::new(None),
             previa_pendente: Cell::new(false),
+            g_abas,
+            aba_teclas,
+            aba_lateral,
+            tem_lateral: Cell::new(false),
             g_leds,
             faixa,
             led_btns: RefCell::new(Vec::new()),
@@ -229,6 +248,18 @@ impl PainelLuz {
             ap_cor_led,
         };
         (painel, pagina)
+    }
+
+    /// Mostra só os grupos da aba escolhida; sem luz lateral não há abas, só os ajustes das teclas.
+    fn mostrar_aba(&self) {
+        let tem = self.tem_lateral.get();
+        let lateral = tem && self.aba_lateral.is_active();
+        self.g_abas.set_visible(tem);
+        self.teclas.g_efeito.set_visible(!lateral);
+        self.teclas.g_paleta.set_visible(!lateral);
+        self.lateral.g_efeito.set_visible(lateral);
+        self.lateral.g_paleta.set_visible(lateral);
+        self.g_leds.set_visible(lateral);
     }
 
     fn controles(&self, area: u8) -> &Controles {
@@ -244,6 +275,8 @@ pub fn ligar(ui: &Rc<Ui>) {
     let p = &ui.luz;
     p.teclas.ligar(ui);
     p.lateral.ligar(ui);
+    let ui2 = ui.clone();
+    p.aba_lateral.connect_toggled(move |_| ui2.luz.mostrar_aba());
     let ui2 = ui.clone();
     p.todos_leds.connect_clicked(move |_| ui2.marcar_leds(true));
     let ui2 = ui.clone();
@@ -266,9 +299,8 @@ impl Ui {
         let p = &self.luz;
         p.teclas.preencher(d.efeitos, &d.luz, &d.paleta);
         // nem todo teclado tem luz lateral
-        p.lateral.g_efeito.set_visible(d.lateral.is_some());
-        p.lateral.g_paleta.set_visible(d.lateral.is_some());
-        p.g_leds.set_visible(d.lateral.is_some());
+        p.tem_lateral.set(d.lateral.is_some());
+        p.mostrar_aba();
         if let Some(l) = &d.lateral {
             p.lateral.preencher(l.area.efeitos, &l.luz, &l.paleta);
         }
