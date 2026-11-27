@@ -53,6 +53,37 @@ fn teclas_avancadas() {
 }
 
 #[test]
+fn teclas_avancadas_de_uma_tecla() {
+    let texto = ok(&["mt", "caps", "--toque", "esc", "--segura", "lctrl", "--tempo", "250"]);
+    assert!(texto.contains("caps: dupla função: toque esc, segurar lctrl (a partir de 250 ms)"), "{texto}");
+    let texto = ok(&["tgl", "f8", "--funcao", "w"]);
+    assert!(texto.contains("f8: contínuo: w fica pressionada"), "{texto}");
+    let texto = ok(&["mpt", "w", "--acao", "w:0.5", "--acao", "lshift:2.5"]);
+    assert!(texto.contains("w: multiponto: w a partir de 0.50 mm, lshift a partir de 2.50 mm"), "{texto}");
+    let texto = ok(&["end", "q", "--pressionar", "q", "--soltar", "e", "--atraso", "5"]);
+    assert!(texto.contains("q: ao soltar: q ao pressionar, e ao soltar (atraso 5 ms)"), "{texto}");
+    let texto = ok(&["rs", "a", "d"]);
+    assert!(texto.contains("a: RS com d: vale a mais pressionada"), "{texto}");
+    assert!(ok(&["avancadas"]).contains("nenhuma tecla com função avançada"), "cada execução começa do estado inicial");
+}
+
+#[test]
+fn recusa_avancadas_invalidas() {
+    for args in [
+        &["mt", "caps", "--toque", "esc"][..],
+        &["mt", "caps", "--toque", "esc", "--segura", "lctrl", "--tempo", "5"],
+        &["mpt", "w", "--acao", "a:2.0", "--acao", "b:1.0"],
+        &["mpt", "w", "--acao", "a:9"],
+        &["end", "q", "--pressionar", "q", "--atraso", "500"],
+        &["rs", "a"],
+        &["tgl", "f8", "--remover"],
+    ] {
+        let (certo, texto) = mag82(args);
+        assert!(!certo, "mag82 {args:?} deveria ser recusado:\n{texto}");
+    }
+}
+
+#[test]
 fn recusa_o_que_nao_pode() {
     let (certo, texto) = mag82(&["atuacao", "w", "--ponto", "9"]);
     assert!(!certo, "ponto de 9 mm deveria ser recusado:\n{texto}");

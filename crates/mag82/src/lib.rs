@@ -408,7 +408,15 @@ impl Teclado {
                 inicio: u16le(&r, 17),
                 fundo: u16le(&r, 19),
             }),
+            2 => Avancada::Mpt(Mpt {
+                teclas: [u16le(&r, 5), u16le(&r, 7), u16le(&r, 9)],
+                pontos: [u16le(&r, 11), u16le(&r, 13), u16le(&r, 15)],
+            }),
+            3 => Avancada::Mt(Mt { toque: u16le(&r, 5), segura: u16le(&r, 7), tempo: u16le(&r, 9) }),
+            4 => Avancada::Tgl(Tgl { tecla: u16le(&r, 5), tempo: u16le(&r, 7) }),
+            5 => Avancada::End(End { ao_pressionar: u16le(&r, 5), ao_soltar: u16le(&r, 7), atraso: u16le(&r, 9) }),
             6 => Avancada::Socd { par: (r[5], r[6]), codigos: (u16le(&r, 7), u16le(&r, 9)), regra: r[13] },
+            7 => Avancada::Rs { par: (r[5], r[6]), codigos: (u16le(&r, 7), u16le(&r, 9)), atraso: u16le(&r, 11) },
             outro => Avancada::Outra(outro),
         })
     }
@@ -419,6 +427,8 @@ impl Teclado {
         if a == b {
             return Err(Erro::Invalido("o SOCD precisa de duas teclas diferentes".into()));
         }
+        self.desfazer_par(a, Some(b))?;
+        self.desfazer_par(b, Some(a))?;
         let (regra_a, regra_b) = modo.regras();
         let (ca, cb) = (cod_a.to_le_bytes(), cod_b.to_le_bytes());
         // um pacote para cada tecla, cada um apontando para a outra; atraso (2 bytes) sempre 0
@@ -429,13 +439,79 @@ impl Teclado {
         self.esperar("o SOCD", |t| Ok(t.avancada(a)? == de_a && t.avancada(b)? == de_b))
     }
 
+    /// Se a tecla faz parte de um par (SOCD ou RS), tira a função avançada da outra tecla do par:
+    /// uma tecla só não sustenta o par, e a outra ficaria apontando para cá.
+    fn desfazer_par(&mut self, pos: Pos, menos: Option<Pos>) -> Resultado<()> {
+        if let Avancada::Socd { par, .. } | Avancada::Rs { par, .. } = self.avancada(pos)? {
+            if Some(par) != menos {
+                self.remover_avancada(par)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Grava uma função avançada de uma tecla só (`corpo` vem depois do tipo) e espera a leitura
+    /// devolver `esperada`.
+    fn gravar_avancada(&mut self, pos: Pos, tipo: u8, corpo: &[u8], esperada: Avancada, nome: &str) -> Resultado<()> {
+        self.desfazer_par(pos, None)?;
+        let mut dados = vec![grupo::TECLA_AVANCADA, 2, pos.0, pos.1, tipo];
+        dados.extend_from_slice(corpo);
+        self.comando(&dados)?;
+        self.esperar(nome, |t| Ok(t.avancada(pos)? == esperada))
+    }
+
+    /// Multiponto: até três funções, cada uma acionada quando a tecla passa de uma profundidade.
+    pub fn definir_mpt(&mut self, pos: Pos, mpt: &Mpt) -> Resultado<()> {
+        mpt.validar()?;
+        let corpo: Vec<u8> = mpt.teclas.iter().chain(&mpt.pontos).flat_map(|v| v.to_le_bytes()).collect();
+        self.gravar_avancada(pos, 2, &corpo, Avancada::Mpt(*mpt), "o multiponto")
+    }
+
+    /// Dupla função: um toque curto envia uma função, segurar envia outra.
+    pub fn definir_mt(&mut self, pos: Pos, mt: &Mt) -> Resultado<()> {
+        mt.validar()?;
+        let corpo: Vec<u8> = [mt.toque, mt.segura, mt.tempo].iter().flat_map(|v| v.to_le_bytes()).collect();
+        self.gravar_avancada(pos, 3, &corpo, Avancada::Mt(*mt), "a dupla função")
+    }
+
+    /// Contínuo: um toque deixa a função pressionada até o toque seguinte.
+    pub fn definir_tgl(&mut self, pos: Pos, tgl: &Tgl) -> Resultado<()> {
+        tgl.validar()?;
+        let corpo: Vec<u8> = [tgl.tecla, tgl.tempo].iter().flat_map(|v| v.to_le_bytes()).collect();
+        self.gravar_avancada(pos, 4, &corpo, Avancada::Tgl(*tgl), "o acionamento contínuo")
+    }
+
+    /// Ao soltar: uma função ao pressionar e outra ao soltar a tecla.
+    pub fn definir_end(&mut self, pos: Pos, end: &End) -> Resultado<()> {
+        end.validar()?;
+        let corpo: Vec<u8> = [end.ao_pressionar, end.ao_soltar, end.atraso].iter().flat_map(|v| v.to_le_bytes()).collect();
+        self.gravar_avancada(pos, 5, &corpo, Avancada::End(*end), "o acionamento ao soltar")
+    }
+
+    /// Liga o RS entre duas teclas: vale a que estiver mais pressionada, e as duas quando ambas
+    /// chegam ao fundo. `cod_a` e `cod_b` são as funções atuais das teclas; `atraso` em ms.
+    pub fn definir_rs(&mut self, a: Pos, b: Pos, cod_a: u16, cod_b: u16, atraso: u16) -> Resultado<()> {
+        if a == b {
+            return Err(Erro::Invalido("o RS precisa de duas teclas diferentes".into()));
+        }
+        if atraso > ATRASO_MAX {
+            return Err(Erro::Invalido(format!("o atraso vai de 0 a {ATRASO_MAX} ms")));
+        }
+        self.desfazer_par(a, Some(b))?;
+        self.desfazer_par(b, Some(a))?;
+        let (ca, cb, at) = (cod_a.to_le_bytes(), cod_b.to_le_bytes(), atraso.to_le_bytes());
+        self.comando(&[grupo::TECLA_AVANCADA, 2, a.0, a.1, 7, b.0, b.1, ca[0], ca[1], cb[0], cb[1], at[0], at[1]])?;
+        self.comando(&[grupo::TECLA_AVANCADA, 2, b.0, b.1, 7, a.0, a.1, cb[0], cb[1], ca[0], ca[1], at[0], at[1]])?;
+        let de_a = Avancada::Rs { par: b, codigos: (cod_a, cod_b), atraso };
+        let de_b = Avancada::Rs { par: a, codigos: (cod_b, cod_a), atraso };
+        self.esperar("o RS", |t| Ok(t.avancada(a)? == de_a && t.avancada(b)? == de_b))
+    }
+
     /// Põe um DKS na tecla: até quatro funções, cada uma acionada em momentos diferentes do
-    /// curso (ver [`Dks`]). Se a tecla fazia parte de um par SOCD, o par é desfeito.
+    /// curso (ver [`Dks`]). Se a tecla fazia parte de um par SOCD ou RS, o par é desfeito.
     pub fn definir_dks(&mut self, pos: Pos, dks: &Dks) -> Resultado<()> {
         dks.validar()?;
-        if let Avancada::Socd { par, .. } = self.avancada(pos)? {
-            self.remover_avancada(par)?;
-        }
+        self.desfazer_par(pos, None)?;
         let mut dados = vec![grupo::TECLA_AVANCADA, 2, pos.0, pos.1, 1];
         for tecla in dks.teclas {
             dados.extend_from_slice(&tecla.to_le_bytes());
@@ -723,8 +799,118 @@ pub enum Avancada {
     Socd { par: Pos, codigos: (u16, u16), regra: u8 },
     /// Acionamento dinâmico: funções diferentes em pontos diferentes do curso da tecla.
     Dks(Dks),
+    /// Multiponto: funções diferentes a cada profundidade.
+    Mpt(Mpt),
+    /// Dupla função: toque curto e segurar.
+    Mt(Mt),
+    /// Contínuo: um toque deixa a função pressionada.
+    Tgl(Tgl),
+    /// Ao soltar: uma função ao pressionar, outra ao soltar.
+    End(End),
+    /// RS com a tecla `par`: vale a mais pressionada das duas. `codigos` como no SOCD; `atraso`
+    /// em milissegundos.
+    Rs { par: Pos, codigos: (u16, u16), atraso: u16 },
     /// Outro tipo (toggle etc.), ainda não suportado; o número é o código do tipo.
     Outra(u8),
+}
+
+/// Maior atraso, em milissegundos, aceito nos pares (RS) e no acionamento ao soltar.
+pub const ATRASO_MAX: u16 = 50;
+/// Faixa do tempo, em milissegundos, que separa toque de segurar (MT e TGL).
+pub const TEMPO_MIN: u16 = 10;
+pub const TEMPO_MAX: u16 = 1000;
+
+/// Multiponto (MPT): a função `teclas[i]` (0 = vaga livre) é acionada quando a tecla passa de
+/// `pontos[i]`, em milésimos de milímetro. As profundidades usadas precisam crescer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Mpt {
+    pub teclas: [u16; 3],
+    pub pontos: [u16; 3],
+}
+
+impl Default for Mpt {
+    fn default() -> Self {
+        Self { teclas: [0; 3], pontos: [500, 1000, 1500] }
+    }
+}
+
+impl Mpt {
+    pub fn validar(&self) -> Resultado<()> {
+        if self.teclas.iter().all(|t| *t == 0) {
+            return Err(Erro::Invalido("o multiponto precisa de pelo menos uma função".into()));
+        }
+        if self.pontos.iter().any(|p| !(DKS_MIN..=DKS_MAX).contains(p)) {
+            return Err(Erro::Invalido("as profundidades do multiponto vão de 0,1 a 3,3 mm".into()));
+        }
+        if !(self.pontos[0] < self.pontos[1] && self.pontos[1] < self.pontos[2]) {
+            return Err(Erro::Invalido("as profundidades do multiponto precisam crescer da primeira à terceira".into()));
+        }
+        Ok(())
+    }
+}
+
+/// Dupla função (MT): soltar a tecla antes de `tempo` (ms) envia `toque`; segurar além disso
+/// envia `segura`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Mt {
+    pub toque: u16,
+    pub segura: u16,
+    pub tempo: u16,
+}
+
+impl Mt {
+    pub fn validar(&self) -> Resultado<()> {
+        if self.toque == 0 || self.segura == 0 {
+            return Err(Erro::Invalido("a dupla função precisa das duas funções: a do toque e a de segurar".into()));
+        }
+        validar_tempo(self.tempo)
+    }
+}
+
+/// Contínuo (TGL): um toque mais curto que `tempo` (ms) deixa `tecla` pressionada até o toque
+/// seguinte.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Tgl {
+    pub tecla: u16,
+    pub tempo: u16,
+}
+
+impl Tgl {
+    pub fn validar(&self) -> Resultado<()> {
+        if self.tecla == 0 {
+            return Err(Erro::Invalido("o acionamento contínuo precisa de uma função".into()));
+        }
+        validar_tempo(self.tempo)
+    }
+}
+
+/// Ao soltar (END): `ao_pressionar` é enviada quando a tecla desce e `ao_soltar` quando ela
+/// sobe; `atraso` em milissegundos.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct End {
+    pub ao_pressionar: u16,
+    pub ao_soltar: u16,
+    pub atraso: u16,
+}
+
+impl End {
+    pub fn validar(&self) -> Resultado<()> {
+        if self.ao_pressionar == 0 && self.ao_soltar == 0 {
+            return Err(Erro::Invalido("o acionamento ao soltar precisa de pelo menos uma função".into()));
+        }
+        if self.atraso > ATRASO_MAX {
+            return Err(Erro::Invalido(format!("o atraso vai de 0 a {ATRASO_MAX} ms")));
+        }
+        Ok(())
+    }
+}
+
+fn validar_tempo(tempo: u16) -> Resultado<()> {
+    if (TEMPO_MIN..=TEMPO_MAX).contains(&tempo) {
+        Ok(())
+    } else {
+        Err(Erro::Invalido(format!("o tempo vai de {TEMPO_MIN} a {TEMPO_MAX} ms")))
+    }
 }
 
 /// Menor e maior distância aceitas nos dois pontos do DKS, em milésimos de milímetro.

@@ -46,8 +46,8 @@ pub const SITE_AUTOR: &str = "https://9level.com.br";
 pub const AUTOR_E_CIDADE: &str = "Juliano Liberato · Joinville - SC";
 
 /// Menor janela em que tudo continua utilizável.
-pub const LARGURA_MIN: i32 = 540;
-pub const ALTURA_MIN: i32 = 620;
+pub const LARGURA_MIN: i32 = 800;
+pub const ALTURA_MIN: i32 = 600;
 
 pub struct Ui {
     pub fila: Fila,
@@ -75,7 +75,7 @@ pub struct Ui {
     pub perfil: gtk::DropDown,
 
     pub tec: Teclas,
-    pub dks: crate::dks::PainelDks,
+    pub av: crate::avancadas::PainelAvancadas,
     pub luz: PainelLuz,
     pub disp: PainelDisp,
     pub cal: Calibracao,
@@ -93,7 +93,7 @@ impl Ui {
         let tela = gdk::Display::default().expect("sem display gráfico");
         gtk::style_context_add_provider_for_display(&tela, &css, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-        let (tec, pagina_teclas, dks) = Teclas::construir(&tela);
+        let (tec, pagina_teclas, av) = Teclas::construir(&tela);
         let (luz, pagina_luz) = PainelLuz::construir();
         let (disp, pagina_disp) = PainelDisp::construir();
 
@@ -177,7 +177,7 @@ impl Ui {
             gravacoes: Cell::new(0),
             perfil,
             tec,
-            dks,
+            av,
             luz,
             disp,
             cal: Calibracao::default(),
@@ -231,7 +231,7 @@ impl Ui {
             }
         });
         crate::teclas::ligar(&ui);
-        crate::dks::ligar(&ui);
+        crate::avancadas::ligar(&ui);
         crate::luz::ligar(&ui);
         crate::dispositivo::ligar(&ui);
         crate::atualizacao::ligar(&ui);

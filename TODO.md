@@ -20,8 +20,11 @@
 - [ ] Seleção por arrasto e atalhos (Ctrl+A, Esc, F5) não têm teste automático: o autoteste chama
       as ações direto, sem simular mouse nem teclado.
 - [ ] Luz lateral: os efeitos 6 a 10 não têm nome oficial e aparecem como "Efeito N".
-- [ ] Recursos do configurador oficial que ainda não existem aqui: macros e as teclas avançadas
-      MPT, MT, TGL, END e RS (o DKS e o SOCD já existem).
+- [ ] Recursos do configurador oficial que ainda não existem aqui: macros.
+- [ ] Teclas avançadas MT, TGL, MPT, END e RS: o teclado guarda e devolve a configuração, mas
+      ninguém apertou as teclas para conferir o comportamento (só o DKS e o SOCD foram conferidos
+      assim). Os limites de tempo (10 a 1000 ms) e de atraso (0 a 50 ms) são os da tela do
+      configurador oficial ou uma faixa prudente, não um limite lido do teclado.
 - [ ] Knob: girar envia volume + e volume -, apertar envia mudo. Não dá para trocar pelo layout:
       o teclado informa uma posição do tipo knob (linha 0, coluna 14), mas gravar uma tecla nela
       não muda o que o knob envia (conferido com o teclado). O configurador oficial também não

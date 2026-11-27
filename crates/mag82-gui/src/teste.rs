@@ -92,13 +92,13 @@ async fn redimensionar(ui: &Rc<Ui>, prefixo: &str) {
     use crate::ui::{ALTURA_MIN, LARGURA_MIN};
     ui.avisar("Redimensionando"); // tira da frente o aviso de erro do passo anterior
     pausa(3500).await;
-    let tamanhos = [(LARGURA_MIN, ALTURA_MIN), (LARGURA_MIN, 900), (640, 700), (800, ALTURA_MIN), (1280, 640), (1500, 1000)];
+    let tamanhos = [(LARGURA_MIN, ALTURA_MIN), (LARGURA_MIN, 900), (1024, 700), (1280, 640), (1500, 1000)];
     for (largura, altura) in tamanhos {
         ui.janela.set_default_size(largura, altura);
         pausa(500).await;
         let nome = format!("r{largura}x{altura}");
         println!("janela pedida {largura}x{altura}: ficou {}x{}", ui.janela.width(), ui.janela.height());
-        for (i, modo) in [Modo::Atuacao, Modo::Remapear, Modo::Cor, Modo::Socd, Modo::Dks].into_iter().enumerate() {
+        for (i, modo) in [Modo::Atuacao, Modo::Remapear, Modo::Cor, Modo::Socd, Modo::Avancada].into_iter().enumerate() {
             // todos os modos no menor tamanho; nos outros, só a atuação (o painel mais cheio)
             if i == 0 || (largura, altura) == (LARGURA_MIN, ALTURA_MIN) {
                 ui.mudar_modo(modo);
@@ -271,24 +271,50 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     ui.remover_socd();
     ocioso(ui).await;
     println!("socd removido: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&D]);
+    // RS: a última opção da lista do modo Pares
+    t.socd_modo.set_selected(4);
+    ui.aplicar_socd();
+    ocioso(ui).await;
+    println!("rs A: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&A]);
+    ui.remover_socd();
+    ocioso(ui).await;
+    println!("rs removido: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&D]);
     ui.marcar(false);
 
     // ----- DKS: monta no painel, grava, confere e remove -----
     const INSERT: Pos = (1, 14);
-    ui.mudar_modo(Modo::Dks);
+    ui.mudar_modo(Modo::Avancada);
     ui.selecionar(&[INSERT]);
     let mut dks = mag82::Dks { teclas: [0xe1, 0x1a, 0, 0], inicio: 1200, ..Default::default() };
     dks.definir_casas(0, mag82::Dks::casas_de_texto("1-3").unwrap());
     dks.definir_casas(1, mag82::Dks::casas_de_texto("4").unwrap());
-    ui.dks.mostrar(&dks);
-    ui.aplicar_dks();
+    ui.av.mostrar(&mag82::Avancada::Dks(dks));
+    ui.aplicar_avancada();
     ocioso(ui).await;
     let gravado = ui.d.borrow().as_ref().unwrap().avancada[&INSERT];
     println!("dks Insert: gravado igual ao montado={}", gravado == mag82::Avancada::Dks(dks));
     fotografar(ui, prefixo, "teclas", "teclas-dks-aplicado").await;
-    ui.remover_dks();
+    ui.remover_avancada();
     ocioso(ui).await;
     println!("dks removido: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&INSERT]);
+
+    // ----- os outros tipos de uma tecla só: cada um é montado, gravado, conferido e removido -----
+    for (nome, avancada) in [
+        ("mt", mag82::Avancada::Mt(mag82::Mt { toque: 0x29, segura: 0xe0, tempo: 250 })),
+        ("tgl", mag82::Avancada::Tgl(mag82::Tgl { tecla: 0x1a, tempo: 200 })),
+        ("mpt", mag82::Avancada::Mpt(mag82::Mpt { teclas: [0x04, 0x05, 0], pontos: [500, 1500, 2500] })),
+        ("end", mag82::Avancada::End(mag82::End { ao_pressionar: 0x14, ao_soltar: 0x08, atraso: 5 })),
+    ] {
+        ui.av.mostrar(&avancada);
+        ui.aplicar_avancada();
+        ocioso(ui).await;
+        let gravada = ui.d.borrow().as_ref().unwrap().avancada[&INSERT];
+        println!("{nome} Insert: gravado igual ao montado={}", gravada == avancada);
+        fotografar(ui, prefixo, "teclas", &format!("teclas-{nome}-aplicado")).await;
+        ui.remover_avancada();
+        ocioso(ui).await;
+    }
+    println!("avançadas removidas: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&INSERT]);
     ui.marcar(false);
     ui.mudar_modo(Modo::Atuacao);
 

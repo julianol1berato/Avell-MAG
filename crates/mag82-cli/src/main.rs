@@ -75,6 +75,78 @@ enum Comando {
         #[arg(long)]
         remover: bool,
     },
+    /// Dupla função: toque curto envia uma função, segurar envia outra (ex.: mt caps --toque esc --segura lctrl)
+    Mt {
+        /// Tecla física
+        tecla: Option<String>,
+        /// Função enviada no toque curto
+        #[arg(long)]
+        toque: Option<String>,
+        /// Função enviada ao segurar
+        #[arg(long)]
+        segura: Option<String>,
+        /// Tempo, em ms, que separa o toque do segurar (de 10 a 1000)
+        #[arg(long, default_value_t = 200)]
+        tempo: u16,
+        /// Remove a dupla função da tecla
+        #[arg(long)]
+        remover: bool,
+    },
+    /// Contínuo: um toque deixa a função pressionada até o toque seguinte (ex.: tgl f8 --funcao w)
+    Tgl {
+        /// Tecla física
+        tecla: Option<String>,
+        /// Função que fica pressionada
+        #[arg(long)]
+        funcao: Option<String>,
+        /// Tempo, em ms, que separa o toque do segurar (de 10 a 1000)
+        #[arg(long, default_value_t = 200)]
+        tempo: u16,
+        /// Remove o acionamento contínuo da tecla
+        #[arg(long)]
+        remover: bool,
+    },
+    /// Multiponto: até três funções, cada uma a partir de uma profundidade (ex.: mpt w --acao w:0.5 --acao lshift:2.5)
+    Mpt {
+        /// Tecla física
+        tecla: Option<String>,
+        /// Função e profundidade em mm, até três vezes, da mais rasa à mais funda
+        #[arg(long = "acao", value_name = "FUNÇÃO:MM")]
+        acoes: Vec<String>,
+        /// Remove o multiponto da tecla
+        #[arg(long)]
+        remover: bool,
+    },
+    /// Ao soltar: uma função ao pressionar e outra ao soltar (ex.: end q --pressionar q --soltar e)
+    End {
+        /// Tecla física
+        tecla: Option<String>,
+        /// Função enviada ao pressionar
+        #[arg(long)]
+        pressionar: Option<String>,
+        /// Função enviada ao soltar
+        #[arg(long)]
+        soltar: Option<String>,
+        /// Atraso em ms (de 0 a 50)
+        #[arg(long, default_value_t = 0)]
+        atraso: u16,
+        /// Remove o acionamento ao soltar da tecla
+        #[arg(long)]
+        remover: bool,
+    },
+    /// RS: entre duas teclas vale a mais pressionada (ex.: rs a d); com --remover basta uma
+    Rs {
+        /// As duas teclas do par
+        teclas: Vec<String>,
+        /// Atraso em ms (de 0 a 50)
+        #[arg(long, default_value_t = 0)]
+        atraso: u16,
+        /// Remove o RS das teclas informadas e de seus pares
+        #[arg(long)]
+        remover: bool,
+    },
+    /// Lista todas as teclas com função avançada (SOCD, RS, DKS, MPT, MT, TGL e END)
+    Avancadas,
     /// Lista as interfaces USB do teclado
     Info,
     /// Versão de firmware e recursos
@@ -200,6 +272,103 @@ extern "C" fn ao_interromper(_: libc::c_int) {
 
 fn cor_hex(texto: &str) -> Result<Rgb, String> {
     Rgb::de_hex(texto).ok_or_else(|| format!("cor inválida: {texto} (use o formato ff8800)"))
+}
+
+/// Código de uma função dada pelo nome; a vaga livre (0) não é uma função.
+fn funcao(nome: &str) -> Resultado<u16> {
+    match mag82::codigo_tecla(nome).filter(|c| *c != 0) {
+        Some(codigo) => Ok(codigo),
+        None => invalido(format!("função desconhecida: {nome}  (veja os nomes com: mag82 teclas)")),
+    }
+}
+
+/// A posição de uma tecla dada pelo nome; `None` se o comando veio sem tecla (só listar).
+fn uma_tecla(mapa: &BTreeMap<Pos, String>, tecla: Option<String>) -> Resultado<Option<Pos>> {
+    let Some(tecla) = tecla else { return Ok(None) };
+    match selecionar(mapa, &[tecla])?[..] {
+        [pos] => Ok(Some(pos)),
+        _ => invalido("informe uma tecla por vez"),
+    }
+}
+
+fn remover_do_tipo(t: &mut Teclado, pos: Pos, e_do_tipo: impl Fn(&Avancada) -> bool, nome: &str) -> Resultado<()> {
+    if !e_do_tipo(&t.avancada(pos)?) {
+        return invalido(format!("essa tecla não tem {nome}"));
+    }
+    t.remover_avancada(pos)
+}
+
+/// Descrição de uma função avançada, para as listagens. Os pares aparecem uma vez só.
+fn descrever_avancada(a: &Avancada, pos: Pos, mapa: &BTreeMap<Pos, String>) -> Option<String> {
+    let nome = |codigo: u16| if codigo == 0 { "nada".to_string() } else { mag82::nome_tecla(codigo) };
+    let mm = |v: u16| format!("{:.2} mm", f32::from(v) / 1000.0);
+    let outra = |par: &Pos| mapa.get(par).cloned().unwrap_or_else(|| "?".into());
+    Some(match a {
+        Avancada::Nenhuma => return None,
+        Avancada::Socd { par, regra, .. } if pos < *par => {
+            let modo = match ModoSocd::da_regra(*regra) {
+                ModoSocd::UltimaVence => "vale a última pressionada".to_string(),
+                ModoSocd::PrioridadeA => "a primeira tem prioridade".to_string(),
+                ModoSocd::PrioridadeB => "a segunda tem prioridade".to_string(),
+                ModoSocd::Neutro => "neutro (nenhuma é enviada)".to_string(),
+            };
+            format!("SOCD com {}: {modo}", outra(par))
+        }
+        Avancada::Rs { par, atraso, .. } if pos < *par => {
+            format!("RS com {}: vale a mais pressionada (atraso {atraso} ms)", outra(par))
+        }
+        Avancada::Socd { .. } | Avancada::Rs { .. } => return None,
+        Avancada::Dks(d) => format!(
+            "DKS: início {}, fundo {}; {}",
+            mm(d.inicio),
+            mm(d.fundo),
+            (0..4)
+                .filter(|i| d.teclas[*i] != 0)
+                .map(|i| format!("{} nos momentos {}", nome(d.teclas[i]), mag82::Dks::casas_em_texto(d.casas(i))))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        Avancada::Mpt(m) => format!(
+            "multiponto: {}",
+            (0..3)
+                .filter(|i| m.teclas[*i] != 0)
+                .map(|i| format!("{} a partir de {}", nome(m.teclas[i]), mm(m.pontos[i])))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        Avancada::Mt(m) => format!("dupla função: toque {}, segurar {} (a partir de {} ms)", nome(m.toque), nome(m.segura), m.tempo),
+        Avancada::Tgl(g) => format!("contínuo: {} fica pressionada (toque até {} ms)", nome(g.tecla), g.tempo),
+        Avancada::End(e) => format!(
+            "ao soltar: {} ao pressionar, {} ao soltar (atraso {} ms)",
+            nome(e.ao_pressionar),
+            nome(e.ao_soltar),
+            e.atraso
+        ),
+        Avancada::Outra(tipo) => format!("função avançada de tipo desconhecido ({tipo})"),
+    })
+}
+
+fn listar_avancadas(
+    t: &mut Teclado,
+    mapa: &BTreeMap<Pos, String>,
+    filtro: impl Fn(&Avancada) -> bool,
+    vazio: &str,
+) -> Resultado<()> {
+    let mut achou = false;
+    for (pos, nome) in mapa {
+        let a = t.avancada(*pos)?;
+        if !filtro(&a) {
+            continue;
+        }
+        if let Some(texto) = descrever_avancada(&a, *pos, mapa) {
+            achou = true;
+            println!("{nome}: {texto}");
+        }
+    }
+    if !achou {
+        println!("{vazio}");
+    }
+    Ok(())
 }
 
 fn invalido<T>(mensagem: impl Into<String>) -> Resultado<T> {
@@ -607,6 +776,98 @@ fn executar(args: Args) -> Resultado<()> {
             if !achou {
                 println!("nenhuma tecla com DKS");
             }
+        }
+        Comando::Mt { tecla, toque, segura, tempo, remover } => {
+            let mapa = mapa(&mut t)?;
+            if let Some(pos) = uma_tecla(&mapa, tecla)? {
+                if remover {
+                    remover_do_tipo(&mut t, pos, |a| matches!(a, Avancada::Mt(_)), "dupla função")?;
+                } else {
+                    let (Some(toque), Some(segura)) = (toque, segura) else {
+                        return invalido("informe as duas funções, ex.: mag82 mt caps --toque esc --segura lctrl");
+                    };
+                    t.definir_mt(pos, &mag82::Mt { toque: funcao(&toque)?, segura: funcao(&segura)?, tempo })?;
+                }
+            }
+            listar_avancadas(&mut t, &mapa, |a| matches!(a, Avancada::Mt(_)), "nenhuma tecla com dupla função")?;
+        }
+        Comando::Tgl { tecla, funcao: qual, tempo, remover } => {
+            let mapa = mapa(&mut t)?;
+            if let Some(pos) = uma_tecla(&mapa, tecla)? {
+                if remover {
+                    remover_do_tipo(&mut t, pos, |a| matches!(a, Avancada::Tgl(_)), "acionamento contínuo")?;
+                } else {
+                    let Some(qual) = qual else { return invalido("informe a função, ex.: mag82 tgl f8 --funcao w") };
+                    t.definir_tgl(pos, &mag82::Tgl { tecla: funcao(&qual)?, tempo })?;
+                }
+            }
+            listar_avancadas(&mut t, &mapa, |a| matches!(a, Avancada::Tgl(_)), "nenhuma tecla com acionamento contínuo")?;
+        }
+        Comando::Mpt { tecla, acoes, remover } => {
+            let mapa = mapa(&mut t)?;
+            if let Some(pos) = uma_tecla(&mapa, tecla)? {
+                if remover {
+                    remover_do_tipo(&mut t, pos, |a| matches!(a, Avancada::Mpt(_)), "multiponto")?;
+                } else {
+                    if acoes.is_empty() || acoes.len() > 3 {
+                        return invalido("informe de uma a três ações, ex.: mag82 mpt w --acao w:0.5 --acao lshift:2.5");
+                    }
+                    let mut mpt = mag82::Mpt::default();
+                    for (i, acao) in acoes.iter().enumerate() {
+                        let Some((qual, mm)) = acao.rsplit_once(':') else {
+                            return invalido(format!("ação sem profundidade: {acao}  (ex.: lshift:2.5)"));
+                        };
+                        let Ok(mm) = mm.parse::<f32>() else { return invalido(format!("profundidade inválida: {mm}")) };
+                        mpt.teclas[i] = funcao(qual)?;
+                        mpt.pontos[i] = (mm * 1000.0).round().clamp(0.0, 65535.0) as u16;
+                    }
+                    // vagas livres ficam depois da última usada, cada uma um pouco mais funda
+                    for i in acoes.len()..3 {
+                        mpt.pontos[i] = mpt.pontos[i - 1].saturating_add(100).min(mag82::DKS_MAX);
+                    }
+                    t.definir_mpt(pos, &mpt)?;
+                }
+            }
+            listar_avancadas(&mut t, &mapa, |a| matches!(a, Avancada::Mpt(_)), "nenhuma tecla com multiponto")?;
+        }
+        Comando::End { tecla, pressionar, soltar, atraso, remover } => {
+            let mapa = mapa(&mut t)?;
+            if let Some(pos) = uma_tecla(&mapa, tecla)? {
+                if remover {
+                    remover_do_tipo(&mut t, pos, |a| matches!(a, Avancada::End(_)), "acionamento ao soltar")?;
+                } else {
+                    if pressionar.is_none() && soltar.is_none() {
+                        return invalido("informe ao menos uma função, ex.: mag82 end q --pressionar q --soltar e");
+                    }
+                    let codigo = |texto: Option<String>| texto.map_or(Ok(0), |f| funcao(&f));
+                    t.definir_end(pos, &mag82::End { ao_pressionar: codigo(pressionar)?, ao_soltar: codigo(soltar)?, atraso })?;
+                }
+            }
+            listar_avancadas(&mut t, &mapa, |a| matches!(a, Avancada::End(_)), "nenhuma tecla com acionamento ao soltar")?;
+        }
+        Comando::Rs { teclas, atraso, remover } => {
+            let mapa = mapa(&mut t)?;
+            let posicoes = selecionar(&mapa, &teclas)?;
+            if remover {
+                if posicoes.is_empty() {
+                    return invalido("informe a tecla, ex.: mag82 rs a --remover");
+                }
+                for pos in posicoes {
+                    if let Avancada::Rs { par, .. } = t.avancada(pos)? {
+                        t.remover_avancada(par)?;
+                        t.remover_avancada(pos)?;
+                    }
+                }
+            } else if !posicoes.is_empty() {
+                let [a, b] = posicoes[..] else { return invalido("informe exatamente duas teclas, ex.: mag82 rs a d") };
+                let atual = t.layout(false)?;
+                t.definir_rs(a, b, atual[&a], atual[&b], atraso)?;
+            }
+            listar_avancadas(&mut t, &mapa, |a| matches!(a, Avancada::Rs { .. }), "nenhum par RS configurado")?;
+        }
+        Comando::Avancadas => {
+            let mapa = mapa(&mut t)?;
+            listar_avancadas(&mut t, &mapa, |_| true, "nenhuma tecla com função avançada")?;
         }
         Comando::Calibrar { encerrar: true } => {
             t.encerrar_calibracao()?;

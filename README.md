@@ -102,7 +102,8 @@ E a interface só mostra o que o teclado confirmou.
 E mais:
 
 - **SOCD** para teclas opostas (A/D, W/S): vale a última, uma delas sempre vence, ou nenhuma.
-- **DKS**: até quatro funções na mesma tecla, acionadas em pontos diferentes do curso.
+- **Teclas avançadas**: DKS (até quatro funções por ponto do curso), dupla função (toque e segurar),
+  contínuo, multiponto, ao soltar e RS (entre duas teclas, vale a mais pressionada).
 - **Linha de comando** com tudo o que a interface faz.
 - **Sem root**: roda como usuário comum.
 
@@ -135,11 +136,9 @@ Na prática: Ubuntu 24.04, Debian 13 e Fedora 43 em diante.
 
 ### Tamanho da tela
 
+- **Mínimo:** a janela precisa de 800 × 600 pixels. Abaixo disso o programa não cabe.
 - **Recomendado:** tela de 1280 × 800 ou maior. A janela abre em 1020 × 880 e mostra o teclado e os
-  ajustes sem precisar rolar.
-- **Mínimo:** a janela encolhe até 540 × 620. Nesse tamanho as abas vão para o rodapé, os nomes dos
-  modos encurtam e a legenda some; os ajustes continuam todos lá, rolando abaixo do teclado.
-- **Abaixo disso** o programa não cabe: em uma tela menor que 540 × 620 parte da janela fica fora dela.
+  ajustes sem precisar rolar; no tamanho mínimo os ajustes rolam abaixo do teclado.
 
 ### A partir do código
 
@@ -177,6 +176,7 @@ mag82 remapear caps lctrl
 mag82 atalhos pgdn home                    # Fn + PgDn passa a ser Home
 mag82 socd a d --modo neutro
 mag82 dks caps --acao lshift:1-3 --acao w:4   # Shift do início até sair do fundo; W ao soltar
+mag82 mt caps --toque esc --segura lctrl      # Esc no toque, Ctrl ao segurar
 mag82 cor w a s d --cor ff8800
 mag82 luz --modo 1 --brilho 60
 mag82 luz --lateral --modo 2
@@ -204,7 +204,7 @@ Cada calibração fica registrada em `~/.local/state/mag82/calibracao.log`.
 ## Limitações
 
 - Testado só no **MAG82** (USB `1ca6:3920`, firmware 0.0.2.0).
-- Ainda faltam macros e as outras teclas avançadas do aplicativo oficial (MPT, MT, TGL e END).
+- Ainda faltam as macros.
 - Não deixe o configurador web oficial aberto junto com este programa.
 
 O resto das pendências está no [TODO.md](TODO.md).
