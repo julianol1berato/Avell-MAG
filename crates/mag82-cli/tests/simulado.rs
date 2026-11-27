@@ -101,8 +101,11 @@ fn avancadas_recusam_funcoes_especiais() {
     }
     let (_, texto) = mag82(&["mpt", "insert", "--acao", "0x20e9:0.5"]);
     assert!(texto.contains("\"Aumentar o volume\" não pode ser usada no multiponto"), "{texto}");
-    // tecla com modificador esquerdo (Ctrl+D) é tecla comum para o teclado
-    assert!(ok(&["mpt", "insert", "--acao", "0x0107:0.5"]).contains("insert: multiponto"));
+    // tecla com modificadores (Ctrl + D): o teclado grava, mas envia só a tecla; o programa recusa
+    let (certo, texto) = mag82(&["mpt", "insert", "--acao", "0x0107:0.5"]);
+    assert!(!certo && texto.contains("\"Ctrl + d\"") && texto.contains("envia só a tecla"), "{texto}");
+    let (certo, texto) = mag82(&["bruto", "0602010e020701"]);
+    assert!(certo && texto.starts_with("06 02 01 0e 02 07 01"), "o simulado aceita como o teclado: {texto}");
     // o que a biblioteca deixa passar e o teclado recusa aparece como recusa, na hora
     let (certo, texto) = mag82(&["bruto", "0602010e02e920"]);
     assert!(certo && texto.starts_with("06 02 01 0e ff"), "{texto}");

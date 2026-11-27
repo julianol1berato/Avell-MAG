@@ -204,8 +204,7 @@ para todas as vagas de cada um:
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
 | Letras, números, F1 a F12, setas, Enter, Espaço… | sim | sim | sim | sim | sim | sim |
 | Ctrl, Shift, Alt e Super (dos dois lados) | sim | sim | sim | sim | sim | sim |
-| Tecla com Ctrl, Shift, Alt ou Super esquerdos (ex.: Ctrl + D) | sim | sim | sim | sim | sim | sim |
-| Tecla com modificador do lado direito | não | não | não | não | não | não |
+| Tecla com Ctrl, Shift, Alt ou Super junto (ex.: Ctrl + D) | não | não | não | não | não | não |
 | Multimídia (volume, faixas, player, navegador…) | não | não | não | não | não | não |
 | Luz das teclas e luz lateral | não | não | não | não | não | não |
 | Perfis, trava da tecla Super, Alt + Tab | não | não | não | não | não | não |
@@ -216,8 +215,11 @@ exemplo, não entra num par.
 
 As funções que não entram aqui continuam valendo direto na tecla (**Teclas → Funções**) e nos
 atalhos com Fn. Por isso as listas do modo **Avançada** só mostram teclas comuns, e a linha de
-comando recusa o resto antes de gravar, dizendo qual função não serve. As combinações com
-modificador só aparecem pela linha de comando, com o código (`--acao 0x0107:0.5` é Ctrl + D).
+comando recusa o resto antes de gravar, dizendo qual função não serve.
+
+Uma tecla com modificador junto (Ctrl + D) é um caso à parte: o teclado aceita gravar, mas ao
+digitar envia só a tecla, sem o modificador. O programa recusa para não deixar na tecla uma função
+que parece uma coisa e faz outra. Para ter Ctrl + D numa tecla, use uma macro.
 
 A tabela foi medida no teclado (firmware 0.0.2.0), função por função; as respostas estão em
 [`crates/mag82/src/avancadas-medidas.txt`](crates/mag82/src/avancadas-medidas.txt) e os testes
