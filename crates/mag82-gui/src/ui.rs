@@ -45,9 +45,10 @@ extern "C" fn ao_encerrar(_: libc::c_int) {
 pub const SITE_AUTOR: &str = "https://9level.com.br";
 pub const AUTOR_E_CIDADE: &str = "Juliano Liberato · Joinville - SC";
 
-/// Menor janela em que tudo continua utilizável.
+/// Menor janela em que tudo continua utilizável. Com 600 de altura a página Teclas não cabia:
+/// pedia 607.
 pub const LARGURA_MIN: i32 = 800;
-pub const ALTURA_MIN: i32 = 600;
+pub const ALTURA_MIN: i32 = 800;
 
 pub struct Ui {
     pub fila: Fila,
