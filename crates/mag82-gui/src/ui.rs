@@ -32,6 +32,7 @@ const CSS_BASE: &str = "
 .legenda-rt { color: @accent_color; font-weight: 900; }
 .legenda-socd { color: @warning_color; font-weight: 900; }
 .legenda-dks { color: @success_color; font-weight: 900; }
+.legenda-remap { color: @purple_3; font-weight: 900; }
 ";
 
 /// Ligado quando o sistema pede para o programa encerrar (SIGHUP, SIGINT, SIGTERM).
