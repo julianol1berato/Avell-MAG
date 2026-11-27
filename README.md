@@ -41,7 +41,9 @@ Quatro páginas, tudo à mão:
 - **Macros**: sequências de teclas gravadas no teclado.
 - **Dispositivo**: perfis, taxa de resposta, calibração e firmware.
 
-O programa percebe sozinho quando o teclado é conectado, desconectado ou troca de perfil.
+O programa percebe sozinho quando o teclado é conectado, desconectado ou troca de perfil. Se
+outro programa mudar o teclado (o configurador web, a linha de comando), a tela se atualiza
+quando você volta para a janela.
 E a interface só mostra o que o teclado confirmou.
 
 ## O que ele faz

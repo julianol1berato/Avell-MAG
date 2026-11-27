@@ -248,6 +248,19 @@ impl Ui {
         crate::atualizacao::ligar(&ui);
         Ui::ligar_atalhos(&ui);
 
+        // Voltar para a janela depois de usar outro programa: o teclado pode ter sido mudado por
+        // fora (o configurador web, a linha de comando), então a configuração é conferida de novo.
+        // Não mais que uma vez a cada poucos segundos, para alternar de janela não virar uma
+        // rajada de leituras.
+        let ui2 = ui.clone();
+        let ultima = Cell::new(std::time::Instant::now());
+        ui.janela.connect_is_active_notify(move |janela| {
+            if janela.is_active() && ultima.get().elapsed() >= Duration::from_secs(3) {
+                ultima.set(std::time::Instant::now());
+                ui2.conferir_teclado();
+            }
+        });
+
         // o teclado pode ser conectado, desconectado ou trocar de perfil sem o programa saber
         let ui2 = ui.clone();
         glib::timeout_add_local(Duration::from_millis(1500), move || {
@@ -499,6 +512,23 @@ impl Ui {
                 }
             },
         );
+    }
+
+    /// Lê o teclado de novo, em silêncio, e atualiza a tela se a configuração mudou por fora.
+    /// O que o usuário editou e ainda não aplicou é preservado.
+    pub fn conferir_teclado(self: &Rc<Self>) {
+        if self.d.borrow().is_none() || self.ocupado.get() > 0 || self.cal.ativa.get() || self.conectando.get() {
+            return;
+        }
+        self.pedir_bruto(false, Dados::ler, |ui, resultado| {
+            // se a leitura falhou, o vigia cuida de reconectar; aqui não há o que mostrar
+            let Ok(novos) = resultado else { return };
+            let mudou = ui.d.borrow().as_ref().is_some_and(|d| d.configuracao() != novos.configuracao());
+            if mudou && !ui.cal.ativa.get() {
+                ui.carregar(novos, true);
+                ui.avisar("O teclado foi alterado por outro programa. A tela foi atualizada.");
+            }
+        });
     }
 
     // ---------- perfis ----------
