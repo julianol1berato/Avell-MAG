@@ -562,6 +562,30 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     ocioso(ui).await;
     println!("de volta por fora: perfil {:?}", ui.d.borrow().as_ref().map(|d| d.perfil_atual));
 
+    // ----- tecla remapeada por fora (o configurador web, a linha de comando): ao voltar para a
+    //       janela, a tela acompanha; sem mudança nenhuma, nada é recarregado -----
+    const TECLA_Q: Pos = (2, 1);
+    let remapear_por_fora = |codigo: u16| {
+        std::thread::spawn(move || mag82::Teclado::abrir().and_then(|mut t| t.definir_funcao(TECLA_Q, codigo)).is_ok())
+    };
+    let funcao_do_q = ui.d.borrow().as_ref().unwrap().atual[&TECLA_Q];
+    println!("remapeamento por fora enviado: {:?}", remapear_por_fora(0x2192).join().ok());
+    println!("antes de voltar para a janela, a tela ainda mostra: {:#06x}", ui.d.borrow().as_ref().unwrap().atual[&TECLA_Q]);
+    ui.conferir_teclado();
+    ocioso(ui).await;
+    println!("ao voltar para a janela, a tela mostra: {:#06x}", ui.d.borrow().as_ref().unwrap().atual[&TECLA_Q]);
+    let _ = remapear_por_fora(funcao_do_q).join();
+    ui.conferir_teclado();
+    ocioso(ui).await;
+    let retrato_antes = ui.d.borrow().as_ref().unwrap().configuracao();
+    ui.conferir_teclado();
+    ocioso(ui).await;
+    println!(
+        "desfeito por fora: {:#06x}; sem mudança, a configuração fica igual={}",
+        ui.d.borrow().as_ref().unwrap().atual[&TECLA_Q],
+        ui.d.borrow().as_ref().unwrap().configuracao() == retrato_antes
+    );
+
     // ----- falha numa gravação: a tela volta a mostrar o que está no teclado, sem perder edições -----
     ui.selecionar(&[W]);
     t.campo(Campo::Ponto).set_value(1.1);
