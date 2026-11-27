@@ -19,6 +19,7 @@ mod fila;
 mod luz;
 mod sobre;
 mod teclas;
+#[cfg(feature = "autoteste")]
 mod teste;
 mod ui;
 mod util;
@@ -35,9 +36,13 @@ fn main() -> glib::ExitCode {
         }
         let ui = ui::Ui::construir(app);
         ui.janela.present();
+        #[cfg(feature = "autoteste")]
         if let Ok(prefixo) = std::env::var("MAG82_TESTE") {
             teste::iniciar(ui, prefixo);
-        } else {
+            return;
+        }
+        // com o teclado simulado o programa não procura versão nova: é ensaio, não uso
+        if !mag82::simulado::ligado() {
             ui.atualizacao_ao_abrir();
         }
     });

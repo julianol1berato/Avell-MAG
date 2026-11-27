@@ -39,14 +39,25 @@ Mantenedor: Juliano Liberato ([9level.com.br](https://9level.com.br) ·
 4. **Faça a mudança** e confira localmente:
 
    ```sh
-   cargo test                 # precisa passar; não usa o teclado
-   packaging/deb.sh           # se mexeu em empacotamento
-   scripts/teste-fumaca.sh    # confere um pacote instalado, sem teclado
+   cargo test                   # precisa passar; não usa o teclado
+   scripts/teste-interface.sh   # exercita todas as telas contra o teclado simulado
+   packaging/deb.sh             # se mexeu em empacotamento
+   scripts/teste-fumaca.sh      # confere um pacote instalado, sem teclado
    ```
 
-   Se você tem o teclado, rode também o autoteste da interface
-   (`MAG82_TESTE=/tmp/tela mag82-gui`). Ele grava no teclado e restaura no fim; leia o aviso no
-   README antes.
+   Você não precisa do teclado para contribuir: `MAG82_SIMULADO=1` troca o teclado de verdade
+   por um simulado, na interface e na linha de comando. Se a sua mudança envia um comando novo
+   ao teclado, ensine o simulado a respondê-lo (`crates/mag82/src/simulado.rs`).
+
+   Se você tem o teclado, rode o mesmo autoteste nele, sem a variável do simulado:
+
+   ```sh
+   cargo build --release -p mag82-gui --features autoteste --target-dir target/autoteste
+   MAG82_TESTE=/tmp/tela target/autoteste/release/mag82-gui
+   ```
+
+   Ele **grava no teclado de verdade** e restaura no fim, mas desfaz um SOCD entre A e D e uma cor
+   fixa na tecla W, se existirem. O autoteste não vai nos pacotes.
 
 5. **Faça commits pequenos**, cada um com uma mudança só e uma mensagem que diga o que mudou e por
    quê.
@@ -87,15 +98,16 @@ Todo pull request e todo envio para `main` dispara o fluxo em
 
 | Etapa | Onde roda | O que confere |
 |---|---|---|
-| **Testes** | Ubuntu 24.04 | Compila e roda os testes unitários |
+| **Testes** | Ubuntu 24.04 | Compila, roda os testes e exercita a interface inteira contra o teclado simulado |
 | **Pacote .deb** | Ubuntu 24.04 | Gera o `.deb`, instala com `apt` e roda o teste de fumaça como usuário comum |
 | **Pacote .rpm** | Fedora | Gera o `.rpm` (compila e testa de novo), instala com `dnf` e roda o teste de fumaça como usuário comum |
 
 O teste de fumaça confere que o programa roda sem root, que a linha de comando responde, que a
-janela abre e desenha as telas sem teclado conectado e que nada é criado fora da pasta do usuário.
+janela abre sem teclado e com o teclado simulado e que nada é criado fora da pasta do usuário.
 Os pacotes gerados ficam anexados à execução, para quem quiser baixar e testar.
 
-A esteira não tem teclado, então ela não substitui o teste no hardware.
+A esteira usa o teclado simulado, que repete o que o teclado de verdade respondeu um dia; ela não
+substitui o teste no hardware quando a mudança envia um comando novo.
 
 No primeiro pull request de alguém, o GitHub só roda a esteira depois que o mantenedor aprova a
 execução.

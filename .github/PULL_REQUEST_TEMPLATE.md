@@ -12,7 +12,8 @@
 
 - [ ] `cargo test` passou
 - [ ] Testei no teclado de verdade (firmware: ___ / distribuição: ___)
-- [ ] Não tenho o teclado; testei só o que não depende dele
+- [ ] `scripts/teste-interface.sh` passou (teclado simulado)
+- [ ] Não tenho o teclado; testei só com o simulado
 
 ## Grava no teclado?
 

@@ -5,6 +5,7 @@
 //! A resposta repete grupo e subcomando.
 
 pub mod registro;
+pub mod simulado;
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -99,6 +100,9 @@ fn u16le(r: &[u8], i: usize) -> u16 {
 
 /// Localiza os nós hidraw do teclado: `{interface USB: /dev/hidrawN}`.
 pub fn interfaces() -> BTreeMap<u8, PathBuf> {
+    if simulado::ligado() {
+        return BTreeMap::from([(CANAL, PathBuf::from("(teclado simulado)"))]);
+    }
     let alvo = format!("{:08X}:{:08X}", VID, PID);
     let mut achados = BTreeMap::new();
     let Ok(dir) = fs::read_dir("/sys/class/hidraw") else { return achados };
@@ -164,13 +168,17 @@ impl Drop for Trava {
 
 /// Conexão aberta com o canal de comandos do teclado.
 pub struct Teclado {
-    arquivo: File,
+    /// O dispositivo de verdade; `None` no teclado simulado (ver [`simulado`]).
+    arquivo: Option<File>,
     /// Mostra em stderr os pacotes enviados e recebidos.
     pub verboso: bool,
 }
 
 impl Teclado {
     pub fn abrir() -> Resultado<Self> {
+        if simulado::ligado() {
+            return Ok(Self { arquivo: None, verboso: false });
+        }
         let caminho = interfaces().remove(&CANAL).ok_or(Erro::NaoEncontrado)?;
         let arquivo = OpenOptions::new()
             .read(true)
@@ -181,12 +189,12 @@ impl Teclado {
                 std::io::ErrorKind::PermissionDenied => Erro::SemPermissao(caminho.clone()),
                 _ => Erro::NaoEncontrado,
             })?;
-        Ok(Self { arquivo, verboso: false })
+        Ok(Self { arquivo: Some(arquivo), verboso: false })
     }
 
     /// Espera até `limite` por dados; devolve `true` se há algo para ler.
-    fn aguardar(&self, limite: Duration) -> bool {
-        let mut pfd = libc::pollfd { fd: self.arquivo.as_raw_fd(), events: libc::POLLIN, revents: 0 };
+    fn aguardar(arquivo: &File, limite: Duration) -> bool {
+        let mut pfd = libc::pollfd { fd: arquivo.as_raw_fd(), events: libc::POLLIN, revents: 0 };
         // SAFETY: `pfd` é uma estrutura válida e o descritor pertence a `self.arquivo`.
         unsafe { libc::poll(&mut pfd, 1, limite.as_millis() as libc::c_int) > 0 }
     }
@@ -222,29 +230,45 @@ impl Teclado {
         if nunca_enviado(dados) {
             return Err(Erro::Bloqueado);
         }
+        let Some(arquivo) = self.arquivo.as_mut() else {
+            // teclado simulado: mesma conversa, sem dispositivo
+            let resposta = simulado::Simulado::compartilhado().lock().ok().and_then(|mut s| s.responder(dados));
+            if self.verboso {
+                eprintln!("  -> {}", hexa(dados));
+                if let Some(r) = &resposta {
+                    eprintln!("  <- {}", hexa(r));
+                }
+            }
+            return resposta.ok_or(Erro::SemResposta([
+                dados[0],
+                dados.get(1).copied().unwrap_or(0),
+                dados.get(2).copied().unwrap_or(0),
+                dados.get(3).copied().unwrap_or(0),
+            ]));
+        };
         let mut pacote = [0u8; TAM + 1]; // byte 0 = report ID (não usado)
         pacote[1..=dados.len()].copy_from_slice(dados);
         let mut resp = [0u8; TAM + 1];
         let eco = eco.clamp(2, dados.len().max(2));
-        let _trava = Trava::obter(&self.arquivo)?;
+        let _trava = Trava::obter(arquivo)?;
 
         for _ in 0..4 {
-            while self.aguardar(Duration::ZERO) {
-                if self.arquivo.read(&mut resp).is_err() {
+            while Self::aguardar(arquivo, Duration::ZERO) {
+                if arquivo.read(&mut resp).is_err() {
                     break; // descarta sobras de respostas antigas
                 }
             }
-            self.arquivo.write_all(&pacote).map_err(|_| Erro::Desconectado)?;
+            arquivo.write_all(&pacote).map_err(|_| Erro::Desconectado)?;
             if self.verboso {
                 eprintln!("  -> {}", hexa(&pacote[1..]));
             }
             let fim = Instant::now() + Duration::from_millis(400);
             loop {
                 let resta = fim.saturating_duration_since(Instant::now());
-                if resta.is_zero() || !self.aguardar(resta) {
+                if resta.is_zero() || !Self::aguardar(arquivo, resta) {
                     break;
                 }
-                let n = match self.arquivo.read(&mut resp) {
+                let n = match arquivo.read(&mut resp) {
                     Ok(n) => n,
                     Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
                     Err(_) => return Err(Erro::Desconectado),

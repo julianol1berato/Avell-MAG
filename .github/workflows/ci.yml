@@ -19,13 +19,22 @@ jobs:
       - name: Dependências
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev xvfb dbus
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Compilar
         run: cargo build --release --locked
       - name: Testes
         run: cargo test --release --locked
+      - name: Interface contra o teclado simulado
+        run: scripts/teste-interface.sh telas
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: telas
+          path: |
+            telas/*.png
+            telas/saida.txt
 
   deb:
     name: Pacote .deb (Ubuntu 24.04)

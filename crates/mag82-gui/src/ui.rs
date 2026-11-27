@@ -47,7 +47,7 @@ pub const AUTOR_E_CIDADE: &str = "Juliano Liberato · Joinville - SC";
 
 /// Menor janela em que tudo continua utilizável.
 pub const LARGURA_MIN: i32 = 540;
-pub const ALTURA_MIN: i32 = 580;
+pub const ALTURA_MIN: i32 = 620;
 
 pub struct Ui {
     pub fila: Fila,
@@ -308,6 +308,7 @@ impl Ui {
     }
 
     /// Tira da tela o aviso que estiver aparecendo.
+    #[cfg_attr(not(feature = "autoteste"), allow(dead_code))]
     pub fn limpar_aviso(&self) {
         if let Some(aviso) = self.aviso_atual.take() {
             aviso.dismiss();
@@ -315,6 +316,7 @@ impl Ui {
     }
 
     /// Nome da tela à mostra: "ok" (teclado conectado) ou "vazio" (tela de espera).
+    #[cfg_attr(not(feature = "autoteste"), allow(dead_code))]
     pub fn tela(&self) -> String {
         self.raiz.visible_child_name().map(|n| n.to_string()).unwrap_or_default()
     }
