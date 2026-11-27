@@ -297,6 +297,31 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     ui.aplicar_socd();
     ocioso(ui).await;
     println!("rs A: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&A]);
+    // remapear uma tecla do par RS: o par passa a guardar a função nova (A vira W: 0x04 -> 0x1a)
+    ui.mudar_modo(Modo::Remapear);
+    ui.selecionar(&[A]);
+    let tecla_w = t.funcoes.iter().position(|(c, _)| *c == 0x1a).unwrap();
+    t.funcao.set_selected(tecla_w as u32);
+    ui.aplicar_funcao(false);
+    ocioso(ui).await;
+    ui.pedir_bruto(
+        false,
+        |t| Ok((t.avancada(A)?, t.avancada(D)?)),
+        |_, r| println!("rs com A remapeada, lido do teclado: {:?}", r.ok()),
+    );
+    ocioso(ui).await;
+    println!("rs com A remapeada, na tela: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&A]);
+    // função especial numa tecla de par RS é recusada antes de gravar
+    let volume = t.funcoes.iter().position(|(c, _)| *c == 0x20E9).unwrap();
+    t.funcao.set_selected(volume as u32);
+    ui.aplicar_funcao(false);
+    ocioso(ui).await;
+    println!("rs: A depois de tentar multimídia envia {:#06x}", ui.d.borrow().as_ref().unwrap().atual[&A]);
+    ui.aplicar_funcao(true);
+    ocioso(ui).await;
+    println!("rs com A restaurada: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&A]);
+    ui.mudar_modo(Modo::Socd);
+    ui.selecionar(&[A, D]);
     ui.remover_socd();
     ocioso(ui).await;
     println!("rs removido: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&D]);
