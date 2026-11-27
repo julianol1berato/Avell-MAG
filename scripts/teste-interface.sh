@@ -38,6 +38,7 @@ confere "cor W: Some(Rgb(255, 0, 0))"
 confere "cor W removida: None"
 confere "função W: a"
 confere "W remapeada, dica da tecla: Some(true)"
+confere 'desenhos das funções: calculadora=Some("accessories-calculator-symbolic") volume=Some("audio-volume-high-symbolic") tecla comum=None'
 confere "função W restaurada: w"
 confere "Fn+Q restaurado: 0x1"
 confere "socd removido: Nenhuma"

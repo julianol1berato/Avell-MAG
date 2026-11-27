@@ -11,7 +11,9 @@ use gtk::gdk;
 use mag82::{Atuacao, Avancada, Campo, Erro, ModoSocd, Pos, Rgb};
 
 use crate::ui::Ui;
-use crate::util::{botao, botao_cor, de_rgba, descrever_funcao, mm, para_rgba, rolavel, rotulo, rotulo_funcao, rotulo_longo};
+use crate::util::{
+    botao, botao_cor, de_rgba, descrever_funcao, icone_da_funcao, mm, para_rgba, rolavel, rotulo, rotulo_funcao, rotulo_longo,
+};
 
 /// Tamanho de uma tecla, em pixels: acompanha o tamanho da janela, dentro destes limites.
 const U_MIN: f64 = 18.0;
@@ -752,10 +754,42 @@ impl Ui {
                 Modo::Socd => par.as_ref().map(|outra| format!("⇄ {outra}")),
                 Modo::Avancada => crate::avancadas::sigla(&d.avancada[pos]).map(str::to_string),
             };
+            // o desenho da função, quando ela tem um: mais fácil de reconhecer que a sigla
+            let tamanho = (t.u.get() * 0.3).clamp(10.0, 16.0) as i32;
+            let desenho = |codigo: u16| {
+                icone_da_funcao(codigo).map(|nome| gtk::Image::builder().icon_name(nome).pixel_size(tamanho).build())
+            };
             let caixa = gtk::Box::builder().orientation(gtk::Orientation::Vertical).valign(gtk::Align::Center).build();
-            caixa.append(&gtk::Label::new(Some(&rotulo(&d.nomes[pos]))));
-            if let Some(sub) = sub.filter(|_| t.u.get() >= U_COM_SUB) {
-                caixa.append(&gtk::Label::builder().label(sub).css_classes(["sub"]).build());
+            // a tecla remapeada para uma função com desenho mostra o desenho ao lado do nome, em
+            // todos os modos
+            let nome = gtk::Label::new(Some(&rotulo(&d.nomes[pos])));
+            match remapeada.as_ref().and_then(|_| desenho(d.atual[pos])) {
+                Some(imagem) => {
+                    let linha = gtk::Box::builder().spacing(3).halign(gtk::Align::Center).build();
+                    linha.append(&nome);
+                    linha.append(&imagem);
+                    caixa.append(&linha);
+                }
+                None => caixa.append(&nome),
+            }
+            // na segunda linha dos modos Funções e Atalhos Fn, o desenho entra no lugar da sigla;
+            // em Funções o desenho já está ao lado do nome, e a segunda linha fica só para o texto
+            let desenho_sub = match modo {
+                Modo::Fn if d.fn_atual[pos] != mag82::FUNCAO_PADRAO => desenho(d.fn_atual[pos]),
+                _ => None,
+            };
+            let sub = match modo {
+                Modo::Remapear if remapeada.is_some() && icone_da_funcao(d.atual[pos]).is_some() => None,
+                _ => sub,
+            };
+            if t.u.get() >= U_COM_SUB {
+                if let Some(imagem) = desenho_sub {
+                    imagem.set_halign(gtk::Align::Center);
+                    imagem.add_css_class("sub");
+                    caixa.append(&imagem);
+                } else if let Some(sub) = sub {
+                    caixa.append(&gtk::Label::builder().label(sub).css_classes(["sub"]).build());
+                }
             }
             b.set_child(Some(&caixa));
 
