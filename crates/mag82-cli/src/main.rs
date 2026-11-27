@@ -169,6 +169,9 @@ enum Comando {
     Avancadas,
     /// Lista as interfaces USB do teclado
     Info,
+    /// Escreve a página de manual (man) do programa; usado no empacotamento
+    #[command(hide = true)]
+    Manual,
     /// Versão de firmware e recursos
     Dispositivo,
     /// Mostra ou altera a taxa de resposta (ex.: taxa 1000)
@@ -427,6 +430,13 @@ fn mm(valor: u16) -> String {
 }
 
 fn executar(args: Args) -> Resultado<()> {
+    if let Comando::Manual = args.comando {
+        use clap::CommandFactory;
+        let comando = Args::command();
+        return clap_mangen::Man::new(comando)
+            .render(&mut std::io::stdout())
+            .map_err(|e| Erro::Invalido(format!("não foi possível escrever a página de manual: {e}")));
+    }
     if let Comando::Registro = args.comando {
         let caminho = mag82::registro::Registro::caminho_padrao("calibracao.log");
         println!("arquivo: {}", caminho.display());
@@ -451,7 +461,7 @@ fn executar(args: Args) -> Resultado<()> {
     let mut t = Teclado::abrir()?;
     t.verboso = args.verboso;
     match args.comando {
-        Comando::Info | Comando::Registro => unreachable!(),
+        Comando::Info | Comando::Registro | Comando::Manual => unreachable!(),
         Comando::Dispositivo => {
             let d = t.dispositivo()?;
             println!("protocolo:  {}", d.protocolo);

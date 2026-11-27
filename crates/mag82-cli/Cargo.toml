@@ -9,6 +9,7 @@ authors.workspace = true
 [dependencies]
 libc = "0.2.191"
 clap = { version = "4.6.10", features = ["derive"] }
+clap_mangen = "0.2"
 mag82 = { version = "0.1.0", path = "../mag82" }
 
 [[bin]]

@@ -1,0 +1,25 @@
+.TH MAG82-GUI 1 "" "mag82" "Comandos do usuário"
+.SH NOME
+mag82\-gui \- configuração do teclado Avell Volcano's MAG82, com interface gráfica
+.SH SINOPSE
+.B mag82\-gui
+.SH DESCRIÇÃO
+Abre a janela de configuração do teclado: atuação e Rapid Trigger por tecla,
+funções e atalhos com Fn, cores fixas, pares SOCD e RS, teclas avançadas, macros,
+efeitos de luz das teclas e da faixa lateral, perfis, taxa de resposta e calibração.
+.PP
+O programa não tem opções de linha de comando e roda como usuário comum.
+.SH AMBIENTE
+.TP
+.B MAG82_SIMULADO
+Se definida, o programa usa um teclado simulado em vez do teclado de verdade.
+Serve para conhecer o programa sem ter o teclado; nada é gravado em aparelho nenhum.
+.SH ARQUIVOS
+.TP
+.I ~/.config/mag82/config
+Preferências do programa, entre elas a de procurar versões novas ao abrir.
+.TP
+.I ~/.local/state/mag82/calibracao.log
+Registro das calibrações.
+.SH VEJA TAMBÉM
+.BR mag82 (1)

@@ -11,37 +11,50 @@ use mag82::{Avancada, Dks, End, Mpt, Mt, Pos, Tgl, ATRASO_MAX, DKS_MAX, DKS_MIN,
 use crate::ui::Ui;
 use crate::util::{botao, rotulo};
 
-/// Os tipos, na ordem da lista: (nome do painel, título, explicação).
+/// Os tipos, na ordem do seletor: (nome do painel, nome no seletor, explicação).
 const TIPOS: [(&str, &str, &str); 5] = [
     (
         "dks",
-        "DKS (acionamento dinâmico)",
-        "A tecla faz coisas diferentes conforme o quanto é pressionada. São dois pontos do curso e, portanto, \
-         quatro momentos: 1 ao descer até o início, 2 ao chegar ao fundo, 3 ao sair do fundo e 4 ao voltar ao início.",
+        "DKS",
+        "Acionamento dinâmico: a tecla faz coisas diferentes conforme o quanto é pressionada. São dois pontos do \
+         curso e, portanto, quatro momentos: 1 ao descer até o início, 2 ao chegar ao fundo, 3 ao sair do fundo \
+         e 4 ao voltar ao início.",
     ),
     (
         "mt",
-        "Dupla função (MT)",
+        "Dupla função",
         "Um toque curto envia uma função; segurar a tecla envia outra. Exemplo: Caps Lock que é Esc no toque e Ctrl ao segurar.",
     ),
     (
         "tgl",
-        "Contínuo (TGL)",
+        "Contínuo",
         "Um toque deixa a função pressionada, como se você continuasse segurando; outro toque solta. \
          Segurando a tecla, ela funciona como uma tecla comum. Serve para correr ou andar sem segurar a tecla.",
     ),
     (
         "mpt",
-        "Multiponto (MPT)",
+        "Multiponto",
         "Até três funções na mesma tecla, cada uma a partir de uma profundidade. Elas se somam: \
          apertando até o fundo, saem as três.",
     ),
     (
         "end",
-        "Ao soltar (END)",
+        "Ao soltar",
         "A tecla envia uma função ao ser pressionada, que repete enquanto ela está segurada, e outra ao ser solta.",
     ),
 ];
+
+/// Lista de funções para o fim de uma linha, com busca; a primeira opção é a vaga livre.
+fn funcao_na_linha(nomes: &gtk::StringList) -> gtk::DropDown {
+    let lista = gtk::DropDown::builder()
+        .model(nomes)
+        .expression(gtk::PropertyExpression::new(gtk::StringObject::static_type(), gtk::Expression::NONE, "string"))
+        .enable_search(true)
+        .valign(gtk::Align::Center)
+        .build();
+    lista.set_size_request(190, -1);
+    lista
+}
 
 /// Lista de funções com busca; a primeira opção é a vaga livre.
 fn lista_de_funcoes(titulo: &str, nomes: &[&str]) -> adw::ComboRow {
@@ -84,7 +97,7 @@ fn mm(linha: &adw::SpinRow) -> u16 {
 
 /// Controles de uma das quatro funções do DKS.
 struct FuncaoDks {
-    qual: adw::ComboRow,
+    qual: gtk::DropDown,
     /// Momento, segura, momento, segura, momento, segura, momento (ver [`Dks::casas`]).
     casas: [gtk::ToggleButton; 7],
 }
@@ -93,7 +106,9 @@ pub struct PainelAvancadas {
     pub painel: gtk::Box,
     /// (código, descrição) de cada opção das listas; a primeira é a vaga livre.
     opcoes: Vec<(u16, String)>,
-    tipo: adw::ComboRow,
+    /// Seletor do tipo, mostrado pela página Teclas logo abaixo da linha da seleção.
+    pub tipos: gtk::Box,
+    tipo_btns: Vec<gtk::ToggleButton>,
     explicacao: gtk::Label,
     paineis: gtk::Stack,
     aplicar: gtk::Button,
@@ -110,7 +125,7 @@ pub struct PainelAvancadas {
     mt_tempo: adw::SpinRow,
     tgl_tecla: adw::ComboRow,
     tgl_tempo: adw::SpinRow,
-    mpt: Vec<(adw::ComboRow, adw::SpinRow)>,
+    mpt: Vec<(gtk::DropDown, gtk::SpinButton)>,
     end_pressionar: adw::ComboRow,
     end_soltar: adw::ComboRow,
     end_atraso: adw::SpinRow,
@@ -125,12 +140,20 @@ impl PainelAvancadas {
         let grupo = |titulo: &str| adw::PreferencesGroup::builder().title(titulo).build();
         let coluna = || gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(18).build();
 
-        // ----- tipo -----
-        let titulos: Vec<&str> = TIPOS.iter().map(|(_, titulo, _)| *titulo).collect();
-        let tipo = adw::ComboRow::builder().title("Tipo").model(&gtk::StringList::new(&titulos)).build();
+        let lista_nomes = gtk::StringList::new(&nomes);
+        // ----- tipo: uma faixa de partes iguais, como o seletor de modos -----
+        let tipos = gtk::Box::builder().css_classes(["linked"]).homogeneous(true).visible(false).build();
+        let mut tipo_btns: Vec<gtk::ToggleButton> = Vec::new();
+        for (_, nome, _) in TIPOS {
+            let b = gtk::ToggleButton::builder().label(nome).hexpand(true).build();
+            match tipo_btns.first() {
+                Some(primeiro) => b.set_group(Some(primeiro)),
+                None => b.set_active(true),
+            }
+            tipos.append(&b);
+            tipo_btns.push(b);
+        }
         let explicacao = gtk::Label::builder().wrap(true).xalign(0.0).css_classes(["dim-label"]).build();
-        let g_tipo = grupo("Função avançada");
-        g_tipo.add(&tipo);
 
         // ----- DKS -----
         let p_dks = coluna();
@@ -140,10 +163,13 @@ impl PainelAvancadas {
         g_pontos.add(&dks_inicio);
         g_pontos.add(&dks_fundo);
         p_dks.append(&g_pontos);
+        let g_funcoes = adw::PreferencesGroup::builder()
+            .title("Funções")
+            .description("Em cada linha: o que a tecla envia e em quais momentos. Número aciona; seta segura até o seguinte.")
+            .build();
         let dks_funcoes: Vec<FuncaoDks> = (0..4)
             .map(|i| {
-                let g = grupo(&format!("Função {}", i + 1));
-                let qual = lista_de_funcoes("Envia", &nomes);
+                let qual = funcao_na_linha(&lista_nomes);
                 let casas: [gtk::ToggleButton; 7] = std::array::from_fn(|c| {
                     if c % 2 == 0 {
                         gtk::ToggleButton::builder()
@@ -161,21 +187,18 @@ impl PainelAvancadas {
                             .build()
                     }
                 });
-                let caixa = gtk::Box::builder().spacing(4).valign(gtk::Align::Center).build();
+                let caixa = gtk::Box::builder().spacing(2).valign(gtk::Align::Center).margin_start(12).build();
                 for casa in &casas {
                     caixa.append(casa);
                 }
-                let linha = adw::ActionRow::builder()
-                    .title("Momentos")
-                    .subtitle("Números: aciona. Setas: segura até o seguinte")
-                    .build();
+                let linha = adw::ActionRow::builder().title(format!("Função {}", i + 1)).build();
+                linha.add_suffix(&qual);
                 linha.add_suffix(&caixa);
-                g.add(&qual);
-                g.add(&linha);
-                p_dks.append(&g);
+                g_funcoes.add(&linha);
                 FuncaoDks { qual, casas }
             })
             .collect();
+        p_dks.append(&g_funcoes);
 
         // ----- dupla função -----
         let g_mt = grupo("Dupla função");
@@ -193,17 +216,26 @@ impl PainelAvancadas {
         g_tgl.add(&tgl_tecla);
         g_tgl.add(&tgl_tempo);
 
-        // ----- multiponto -----
-        let p_mpt = coluna();
-        let mpt: Vec<(adw::ComboRow, adw::SpinRow)> = [("Toque leve", 0.5), ("Toque médio", 1.5), ("Toque fundo", 2.5)]
+        // ----- multiponto: uma linha por profundidade -----
+        let g_mpt = adw::PreferencesGroup::builder()
+            .title("Profundidades")
+            .description("O que a tecla envia a partir de cada profundidade, em milímetros, da mais rasa à mais funda.")
+            .build();
+        let mpt: Vec<(gtk::DropDown, gtk::SpinButton)> = [("Toque leve", 0.5), ("Toque médio", 1.5), ("Toque fundo", 2.5)]
             .into_iter()
             .map(|(titulo, valor)| {
-                let g = grupo(titulo);
-                let qual = lista_de_funcoes("Envia", &nomes);
-                let ponto = profundidade("A partir de", "Profundidade em mm", valor);
-                g.add(&qual);
-                g.add(&ponto);
-                p_mpt.append(&g);
+                let qual = funcao_na_linha(&lista_nomes);
+                let ponto = gtk::SpinButton::with_range(f64::from(DKS_MIN) / 1000.0, f64::from(DKS_MAX) / 1000.0, 0.1);
+                ponto.set_digits(1);
+                ponto.set_value(valor);
+                ponto.set_valign(gtk::Align::Center);
+                ponto.set_margin_start(12);
+                ponto.set_tooltip_text(Some("A partir de quantos milímetros"));
+                let linha = adw::ActionRow::builder().title(titulo).build();
+                linha.add_suffix(&qual);
+                linha.add_suffix(&ponto);
+                linha.add_suffix(&gtk::Label::builder().label("mm").css_classes(["dim-label"]).build());
+                g_mpt.add(&linha);
                 (qual, ponto)
             })
             .collect();
@@ -221,7 +253,7 @@ impl PainelAvancadas {
         paineis.add_named(&p_dks, Some("dks"));
         paineis.add_named(&g_mt, Some("mt"));
         paineis.add_named(&g_tgl, Some("tgl"));
-        paineis.add_named(&p_mpt, Some("mpt"));
+        paineis.add_named(&g_mpt, Some("mpt"));
         paineis.add_named(&g_end, Some("end"));
 
         let remover = botao("Remover", false);
@@ -231,7 +263,6 @@ impl PainelAvancadas {
         acoes.append(&aplicar);
 
         let painel = coluna();
-        painel.append(&g_tipo);
         painel.append(&explicacao);
         painel.append(&paineis);
         painel.append(&acoes);
@@ -239,7 +270,8 @@ impl PainelAvancadas {
         let p = Self {
             painel,
             opcoes,
-            tipo,
+            tipos,
+            tipo_btns,
             explicacao,
             paineis,
             aplicar,
@@ -264,9 +296,29 @@ impl PainelAvancadas {
 
     /// Mostra o painel e a explicação do tipo escolhido na lista.
     fn trocar_tipo(&self) {
-        let (nome, _, explicacao) = TIPOS[(self.tipo.selected() as usize).min(TIPOS.len() - 1)];
+        let (nome, _, explicacao) = TIPOS[self.tipo()];
         self.paineis.set_visible_child_name(nome);
         self.explicacao.set_label(explicacao);
+    }
+
+    /// Posição, em [`TIPOS`], do tipo escolhido no seletor.
+    fn tipo(&self) -> usize {
+        self.tipo_btns.iter().position(|b| b.is_active()).unwrap_or(0)
+    }
+
+    fn escolher_tipo(&self, tipo: usize) {
+        if let Some(b) = self.tipo_btns.get(tipo) {
+            b.set_active(true);
+        }
+        self.trocar_tipo();
+    }
+
+    fn escolher_na_linha(&self, lista: &gtk::DropDown, codigo: u16) {
+        lista.set_selected(self.opcoes.iter().position(|(c, _)| *c == codigo).unwrap_or(0) as u32);
+    }
+
+    fn codigo_da_linha(&self, lista: &gtk::DropDown) -> u16 {
+        self.opcoes.get(lista.selected() as usize).map_or(0, |(c, _)| *c)
     }
 
     fn escolher(&self, lista: &adw::ComboRow, codigo: u16) {
@@ -284,7 +336,7 @@ impl PainelAvancadas {
                 self.dks_inicio.set_value(f64::from(dks.inicio) / 1000.0);
                 self.dks_fundo.set_value(f64::from(dks.fundo) / 1000.0);
                 for (i, f) in self.dks_funcoes.iter().enumerate() {
-                    self.escolher(&f.qual, dks.teclas[i]);
+                    self.escolher_na_linha(&f.qual, dks.teclas[i]);
                     for (casa, ligada) in f.casas.iter().zip(dks.casas(i)) {
                         casa.set_active(ligada);
                     }
@@ -304,7 +356,7 @@ impl PainelAvancadas {
             }
             Avancada::Mpt(mpt) => {
                 for (i, (qual, ponto)) in self.mpt.iter().enumerate() {
-                    self.escolher(qual, mpt.teclas[i]);
+                    self.escolher_na_linha(qual, mpt.teclas[i]);
                     ponto.set_value(f64::from(mpt.pontos[i]) / 1000.0);
                 }
                 3
@@ -317,29 +369,27 @@ impl PainelAvancadas {
             }
             _ => return,
         };
-        self.tipo.set_selected(tipo);
-        self.trocar_tipo();
+        self.escolher_tipo(tipo);
     }
 
     /// Deixa todos os painéis em branco, sem mudar o tipo escolhido.
     fn limpar(&self) {
-        let tipo = self.tipo.selected();
+        let tipo = self.tipo();
         self.mostrar(&Avancada::Dks(Dks::default()));
         self.mostrar(&Avancada::Mt(Mt { toque: 0, segura: 0, tempo: 200 }));
         self.mostrar(&Avancada::Tgl(Tgl { tecla: 0, tempo: 200 }));
         self.mostrar(&Avancada::Mpt(Mpt { teclas: [0; 3], pontos: [500, 1500, 2500] }));
         self.mostrar(&Avancada::End(End { ao_pressionar: 0, ao_soltar: 0, atraso: 0 }));
-        self.tipo.set_selected(tipo);
-        self.trocar_tipo();
+        self.escolher_tipo(tipo);
     }
 
     /// A função avançada que está montada no painel do tipo escolhido.
     fn da_tela(&self) -> Avancada {
-        match self.tipo.selected() {
+        match self.tipo() {
             0 => {
                 let mut dks = Dks { inicio: mm(&self.dks_inicio), fundo: mm(&self.dks_fundo), ..Default::default() };
                 for (i, f) in self.dks_funcoes.iter().enumerate() {
-                    dks.teclas[i] = self.codigo(&f.qual);
+                    dks.teclas[i] = self.codigo_da_linha(&f.qual);
                     // vaga sem função fica sem momentos
                     if dks.teclas[i] != 0 {
                         dks.definir_casas(i, std::array::from_fn(|c| f.casas[c].is_active()));
@@ -354,8 +404,8 @@ impl PainelAvancadas {
             }),
             2 => Avancada::Tgl(Tgl { tecla: self.codigo(&self.tgl_tecla), tempo: self.tgl_tempo.value().round() as u16 }),
             3 => Avancada::Mpt(Mpt {
-                teclas: std::array::from_fn(|i| self.codigo(&self.mpt[i].0)),
-                pontos: std::array::from_fn(|i| mm(&self.mpt[i].1)),
+                teclas: std::array::from_fn(|i| self.codigo_da_linha(&self.mpt[i].0)),
+                pontos: std::array::from_fn(|i| (self.mpt[i].1.value() * 1000.0).round() as u16),
             }),
             _ => Avancada::End(End {
                 ao_pressionar: self.codigo(&self.end_pressionar),
@@ -384,8 +434,14 @@ pub fn sigla(avancada: &Avancada) -> Option<&'static str> {
 }
 
 pub fn ligar(ui: &Rc<Ui>) {
-    let ui2 = ui.clone();
-    ui.av.tipo.connect_selected_notify(move |_| ui2.av.trocar_tipo());
+    for b in &ui.av.tipo_btns {
+        let ui2 = ui.clone();
+        b.connect_toggled(move |b| {
+            if b.is_active() {
+                ui2.av.trocar_tipo();
+            }
+        });
+    }
     let ui2 = ui.clone();
     ui.av.aplicar.connect_clicked(move |_| ui2.aplicar_avancada());
     let ui2 = ui.clone();

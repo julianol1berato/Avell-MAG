@@ -468,6 +468,8 @@ impl Teclas {
         paineis.add_named(&rolavel(&g_socd, 820), Some(Modo::Socd.nome()));
         let avancadas = crate::avancadas::PainelAvancadas::construir(&fn_opcoes[1..]);
         paineis.add_named(&rolavel(&avancadas.painel, 820), Some(Modo::Avancada.nome()));
+        // o seletor de tipo fica com os outros seletores, abaixo da linha da seleção
+        linha_sel.append(&avancadas.tipos);
 
         let topo = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -864,6 +866,7 @@ impl Ui {
             t.camada_normal.set_active(modo != Modo::Fn);
         });
         t.camadas.set_visible(modo.botao() == Modo::Remapear);
+        self.av.tipos.set_visible(modo == Modo::Avancada);
         t.paineis.set_visible_child_name(modo.nome());
         self.aplicar_limite();
         self.pintar_teclas();
