@@ -54,9 +54,19 @@ confere "troca por fora percebida: perfil Some(2), seletor em 2"
 confere "depois da falha: tela=ok brilho voltou=true edição preservada=true"
 confere "reconectou sozinho: tela=ok dados=true"
 confere "restaurado: true"
-if grep -q "exceeds AdwApplicationWindow" "$saida/saida.txt"; then
-    grep "exceeds AdwApplicationWindow" "$saida/saida.txt" | sort | uniq -c
-    falhou "alguma tela não coube na janela"
+# Aviso de tela que não coube na janela. Sob o xvfb, sem gerenciador de janelas, a janela fica
+# 10 px menor que o pedido em cada medida e o aviso aparece com 20 px de diferença: até aí é do
+# ambiente, acima disso é a tela que cresceu.
+excesso="$(sed -n 's/.*exceeds AdwApplicationWindow \(.*\)/\1/p' "$saida/saida.txt" | python3 -c '
+import re, sys
+pior = 0
+for linha in sys.stdin:
+    pedido, disponivel = [list(map(int, re.findall(r"\d+", parte))) for parte in linha.split(" px, ")[:2]]
+    pior = max([pior] + [p - d for p, d in zip(pedido, disponivel)])
+print(pior)')"
+if [ "$excesso" -gt 20 ]; then
+    grep "exceeds AdwApplicationWindow" "$saida/saida.txt" | sed 's/.*exceeds/exceeds/' | sort | uniq -c
+    falhou "alguma tela não coube na janela (passou $excesso px)"
 fi
 telas="$(find "$saida" -maxdepth 1 -name 'tela-*.png' | wc -l)"
 [ "$telas" -ge 30 ] || falhou "poucas telas desenhadas: $telas"
