@@ -6,6 +6,7 @@
 //! - `teclas`, `luz`, `dispositivo`: uma página cada;
 //! - `atualizacao`: procura, baixa e instala versões novas do programa;
 //! - `avancadas`: modo Avançada da página Teclas (DKS, multiponto, dupla função, contínuo, ao soltar);
+//! - `macros`: página das macros;
 //! - `sobre`: janela Sobre, com a abertura animada;
 //! - `calibracao`: diálogo de calibração das teclas;
 //! - `teste`: autoteste acionado pela variável `MAG82_TESTE`.
@@ -18,6 +19,7 @@ mod dispositivo;
 
 mod fila;
 mod luz;
+mod macros;
 mod sobre;
 mod teclas;
 #[cfg(feature = "autoteste")]

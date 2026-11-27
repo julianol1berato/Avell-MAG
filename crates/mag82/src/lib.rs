@@ -49,6 +49,7 @@ mod grupo {
     pub const PERFORMANCE: u8 = 4;
     pub const LIGHTING: u8 = 5;
     pub const TECLA_AVANCADA: u8 = 6;
+    pub const MACRO: u8 = 7;
     /// Atualização de firmware: nunca enviado, pode inutilizar o teclado.
     pub const FIRMWARE: u8 = 8;
 }
@@ -530,6 +531,53 @@ impl Teclado {
         self.esperar("a remoção da função avançada", |t| Ok(t.avancada(pos)? == Avancada::Nenhuma))
     }
 
+    // ---------- macros ----------
+
+    /// Quantas macros o teclado guarda e quantas ações cabem ao todo (0 = não informado).
+    pub fn espaco_de_macros(&mut self) -> Resultado<(u8, u16)> {
+        let r = self.ler(&[grupo::GLOBAL, 14, 0])?;
+        Ok((r[3], u16le(&r, 4)))
+    }
+
+    /// Lê a macro `indice` (a partir de 0): o modo e todas as ações.
+    pub fn macro_gravada(&mut self, indice: u8) -> Resultado<Macro> {
+        let r = self.ler(&[grupo::MACRO, 1, indice])?;
+        let (valida, total, repeticoes) = (r[3] == 1, u16le(&r, 4) as usize, u16le(&r, 6));
+        let modo = ModoMacro::do_byte(r[8]);
+        if total > MACRO_ACOES_MAX {
+            return Err(Erro::Invalido(format!("o teclado informou uma macro de {total} ações, mais do que cabe")));
+        }
+        let mut acoes = Vec::with_capacity(total);
+        for pagina in 0..total.div_ceil(MACRO_ACOES_POR_PAGINA) {
+            let r = self.ler(&[grupo::MACRO, 3, indice, pagina as u8])?;
+            for bloco in r[4..].chunks_exact(4).take(total - acoes.len()) {
+                acoes.push(AcaoMacro::do_teclado(u32::from_le_bytes([bloco[0], bloco[1], bloco[2], bloco[3]])));
+            }
+        }
+        Ok(Macro { valida, modo, repeticoes, acoes })
+    }
+
+    /// Grava a macro `indice` e só retorna quando a leitura devolve a mesma macro.
+    pub fn definir_macro(&mut self, indice: u8, m: &Macro) -> Resultado<()> {
+        m.validar()?;
+        let (total, rep) = ((m.acoes.len() as u16).to_le_bytes(), m.repeticoes.to_le_bytes());
+        self.comando(&[grupo::MACRO, 2, indice, m.valida as u8, total[0], total[1], rep[0], rep[1], m.modo.byte()])?;
+        for (pagina, acoes) in m.acoes.chunks(MACRO_ACOES_POR_PAGINA).enumerate() {
+            let mut dados = vec![grupo::MACRO, 4, indice, pagina as u8];
+            for acao in acoes {
+                dados.extend_from_slice(&acao.para_o_teclado().to_le_bytes());
+            }
+            self.comando(&dados)?;
+        }
+        let esperada = m.clone();
+        self.esperar("a macro", |t| Ok(t.macro_gravada(indice)? == esperada))
+    }
+
+    /// Apaga a macro `indice`: fica sem ações e marcada como vazia.
+    pub fn apagar_macro(&mut self, indice: u8) -> Resultado<()> {
+        self.definir_macro(indice, &Macro::default())
+    }
+
     // ---------- iluminação ----------
 
     /// Áreas de luz do teclado: a das teclas ([`AREA_TECLAS`]) e, se houver, a faixa lateral
@@ -812,6 +860,217 @@ pub enum Avancada {
     Rs { par: Pos, codigos: (u16, u16), atraso: u16 },
     /// Outro tipo (toggle etc.), ainda não suportado; o número é o código do tipo.
     Outra(u8),
+}
+
+/// Código da função "macro 1"; as seguintes vêm em ordem (ver [`codigo_da_macro`]).
+pub const MACRO_BASE: u16 = 0xF500;
+/// Quantas macros a biblioteca endereça; o teclado diz quantas tem em
+/// [`Teclado::espaco_de_macros`].
+pub const MACROS_MAX: u8 = 16;
+/// Ações por pacote na leitura e na gravação de uma macro.
+pub const MACRO_ACOES_POR_PAGINA: usize = 15;
+/// Limite de ações de uma macro nesta biblioteca (o número de página é um byte).
+pub const MACRO_ACOES_MAX: usize = 255 * MACRO_ACOES_POR_PAGINA;
+/// Maior espera de uma ação, em milissegundos.
+pub const MACRO_ESPERA_MAX: u16 = 32767;
+/// Maior número de repetições de uma macro.
+pub const MACRO_REPETICOES_MAX: u16 = 9999;
+
+/// Código da função que dispara a macro `indice` (a partir de 0).
+pub fn codigo_da_macro(indice: u8) -> u16 {
+    MACRO_BASE + u16::from(indice)
+}
+
+/// Índice da macro (a partir de 0) que um código de função dispara, se for um.
+pub fn macro_do_codigo(codigo: u16) -> Option<u8> {
+    codigo.checked_sub(MACRO_BASE).filter(|i| *i < u16::from(MACROS_MAX)).map(|i| i as u8)
+}
+
+/// O que acontece quando a tecla da macro é usada.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModoMacro {
+    /// Um toque roda a macro o número de vezes pedido; o campo diz o que faz um toque novo
+    /// enquanto ela ainda está rodando.
+    Toque(ToqueNovo),
+    /// Roda enquanto a tecla está pressionada e para na hora ao soltar.
+    SegurarParaJa,
+    /// Roda enquanto a tecla está pressionada e, ao soltar, termina a rodada em curso.
+    SegurarTermina,
+}
+
+/// Efeito de tocar de novo na tecla com a macro ainda rodando.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToqueNovo {
+    Ignora,
+    Recomeca,
+    ParaJa,
+    ParaAoTerminar,
+}
+
+impl ModoMacro {
+    pub const TODOS: [ModoMacro; 6] = [
+        ModoMacro::Toque(ToqueNovo::Ignora),
+        ModoMacro::Toque(ToqueNovo::Recomeca),
+        ModoMacro::Toque(ToqueNovo::ParaJa),
+        ModoMacro::Toque(ToqueNovo::ParaAoTerminar),
+        ModoMacro::SegurarParaJa,
+        ModoMacro::SegurarTermina,
+    ];
+
+    pub fn byte(self) -> u8 {
+        Self::TODOS.iter().position(|m| *m == self).unwrap_or(0) as u8
+    }
+
+    pub fn do_byte(byte: u8) -> Self {
+        Self::TODOS.get(byte as usize).copied().unwrap_or(Self::TODOS[0])
+    }
+
+    /// Verdadeiro nos modos em que o número de repetições vale (os de toque).
+    pub fn conta_repeticoes(self) -> bool {
+        matches!(self, ModoMacro::Toque(_))
+    }
+
+    pub fn descricao(self) -> &'static str {
+        match self {
+            ModoMacro::Toque(ToqueNovo::Ignora) => "Um toque roda; tocar de novo enquanto roda não faz nada",
+            ModoMacro::Toque(ToqueNovo::Recomeca) => "Um toque roda; tocar de novo recomeça",
+            ModoMacro::Toque(ToqueNovo::ParaJa) => "Um toque roda; tocar de novo para na hora",
+            ModoMacro::Toque(ToqueNovo::ParaAoTerminar) => "Um toque roda; tocar de novo para ao fim da rodada",
+            ModoMacro::SegurarParaJa => "Roda enquanto a tecla está pressionada; soltar para na hora",
+            ModoMacro::SegurarTermina => "Roda enquanto a tecla está pressionada; soltar termina a rodada",
+        }
+    }
+}
+
+/// Um passo de uma macro: pressionar ou soltar uma função, depois de esperar `espera` ms.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AcaoMacro {
+    pub pressiona: bool,
+    pub espera: u16,
+    pub codigo: u16,
+}
+
+impl AcaoMacro {
+    fn para_o_teclado(self) -> u32 {
+        (u32::from(self.pressiona) << 31) | (u32::from(self.espera & 0x7FFF) << 16) | u32::from(self.codigo)
+    }
+
+    fn do_teclado(bruto: u32) -> Self {
+        Self { pressiona: bruto >> 31 == 1, espera: ((bruto >> 16) & 0x7FFF) as u16, codigo: bruto as u16 }
+    }
+}
+
+/// Uma macro: sequência de ações que o teclado executa sozinho quando a tecla ligada a ela
+/// (ver [`codigo_da_macro`]) é usada.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Macro {
+    /// Falso na vaga vazia.
+    pub valida: bool,
+    pub modo: ModoMacro,
+    /// Quantas vezes a macro roda a cada toque (modos de toque).
+    pub repeticoes: u16,
+    pub acoes: Vec<AcaoMacro>,
+}
+
+impl Default for Macro {
+    fn default() -> Self {
+        Self { valida: false, modo: ModoMacro::TODOS[0], repeticoes: 1, acoes: Vec::new() }
+    }
+}
+
+impl Macro {
+    pub fn validar(&self) -> Resultado<()> {
+        if self.valida != !self.acoes.is_empty() {
+            return Err(Erro::Invalido("macro com ações precisa estar ativa, e macro vazia não".into()));
+        }
+        if self.acoes.len() > MACRO_ACOES_MAX {
+            return Err(Erro::Invalido(format!("a macro tem ações demais (o limite é {MACRO_ACOES_MAX})")));
+        }
+        if !(1..=MACRO_REPETICOES_MAX).contains(&self.repeticoes) {
+            return Err(Erro::Invalido(format!("as repetições vão de 1 a {MACRO_REPETICOES_MAX}")));
+        }
+        for acao in &self.acoes {
+            if acao.espera > MACRO_ESPERA_MAX {
+                return Err(Erro::Invalido(format!("a espera de uma ação vai até {MACRO_ESPERA_MAX} ms")));
+            }
+            if acao.codigo == 0 || macro_do_codigo(acao.codigo).is_some() {
+                return Err(Erro::Invalido("uma ação de macro precisa de uma função, e não pode ser outra macro".into()));
+            }
+        }
+        // toda função pressionada precisa ser solta, ou a tecla fica presa no computador
+        let mut pressionadas: Vec<u16> = Vec::new();
+        for acao in &self.acoes {
+            if acao.pressiona {
+                pressionadas.push(acao.codigo);
+            } else if let Some(i) = pressionadas.iter().position(|c| *c == acao.codigo) {
+                pressionadas.remove(i);
+            } else {
+                return Err(Erro::Invalido(format!("a macro solta {} sem ter pressionado antes", nome_tecla(acao.codigo))));
+            }
+        }
+        if let Some(presa) = pressionadas.first() {
+            return Err(Erro::Invalido(format!("a macro pressiona {} e não solta", nome_tecla(*presa))));
+        }
+        Ok(())
+    }
+
+    /// A macro escrita como texto: `+a` pressiona, `-a` solta, `a` faz as duas coisas, e `50ms`
+    /// é a espera antes da ação seguinte. Exemplo: `+lctrl c -lctrl`.
+    pub fn em_texto(&self) -> String {
+        let mut partes = Vec::new();
+        let mut i = 0;
+        while i < self.acoes.len() {
+            let a = self.acoes[i];
+            if a.espera > 0 {
+                partes.push(format!("{}ms", a.espera));
+            }
+            let nome = nome_tecla(a.codigo);
+            // pressionar e soltar em seguida, sem espera, vira um toque
+            match self.acoes.get(i + 1) {
+                Some(b) if a.pressiona && !b.pressiona && b.codigo == a.codigo && b.espera == 0 => {
+                    partes.push(nome);
+                    i += 2;
+                }
+                _ => {
+                    partes.push(format!("{}{nome}", if a.pressiona { '+' } else { '-' }));
+                    i += 1;
+                }
+            }
+        }
+        partes.join(" ")
+    }
+
+    /// O contrário de [`Macro::em_texto`]; o erro diz qual pedaço não foi entendido.
+    pub fn acoes_de_texto(texto: &str) -> Resultado<Vec<AcaoMacro>> {
+        let mut acoes = Vec::new();
+        let mut espera = 0u16;
+        for pedaco in texto.split_whitespace() {
+            if let Some(ms) = pedaco.strip_suffix("ms").and_then(|n| n.parse::<u16>().ok()) {
+                if ms > MACRO_ESPERA_MAX {
+                    return Err(Erro::Invalido(format!("a espera vai até {MACRO_ESPERA_MAX} ms: {pedaco}")));
+                }
+                espera = ms;
+                continue;
+            }
+            let (pressiona, solta, nome) = match pedaco.split_at(1) {
+                ("+", nome) if !nome.is_empty() => (true, false, nome),
+                ("-", nome) if !nome.is_empty() => (false, true, nome),
+                _ => (true, true, pedaco),
+            };
+            let Some(codigo) = codigo_tecla(nome).filter(|c| *c != 0) else {
+                return Err(Erro::Invalido(format!("função desconhecida na macro: {nome}")));
+            };
+            if pressiona {
+                acoes.push(AcaoMacro { pressiona: true, espera, codigo });
+                espera = 0;
+            }
+            if solta {
+                acoes.push(AcaoMacro { pressiona: false, espera, codigo });
+                espera = 0;
+            }
+        }
+        Ok(acoes)
+    }
 }
 
 /// Maior atraso, em milissegundos, aceito nos pares (RS) e no acionamento ao soltar.
@@ -1459,12 +1718,17 @@ pub fn funcoes() -> Vec<(u16, String)> {
 }
 
 pub fn nome_tecla(codigo: u16) -> String {
+    if let Some(indice) = macro_do_codigo(codigo) {
+        return format!("macro{}", indice + 1);
+    }
     funcoes().into_iter().find(|(c, _)| *c == codigo).map(|(_, n)| n).unwrap_or_else(|| format!("0x{codigo:04x}"))
 }
 
 /// Família de uma função especial, para agrupar nas listas.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Familia {
+    /// Dispara uma macro gravada no teclado.
+    Macro,
     Multimidia,
     LuzTeclas,
     LuzLateral,
@@ -1529,6 +1793,22 @@ pub const ESPECIAIS: &[Especial] = &[
     esp(0xF207, "Mudar para o perfil 3", "Perf.3", Familia::Teclado),
     esp(0xF208, "Mudar para o perfil 4", "Perf.4", Familia::Teclado),
     esp(0xF209, "Bloquear a tecla Super (Windows)", "Trava", Familia::Teclado),
+    esp(MACRO_BASE + 0, "Macro 1", "M1", Familia::Macro),
+    esp(MACRO_BASE + 1, "Macro 2", "M2", Familia::Macro),
+    esp(MACRO_BASE + 2, "Macro 3", "M3", Familia::Macro),
+    esp(MACRO_BASE + 3, "Macro 4", "M4", Familia::Macro),
+    esp(MACRO_BASE + 4, "Macro 5", "M5", Familia::Macro),
+    esp(MACRO_BASE + 5, "Macro 6", "M6", Familia::Macro),
+    esp(MACRO_BASE + 6, "Macro 7", "M7", Familia::Macro),
+    esp(MACRO_BASE + 7, "Macro 8", "M8", Familia::Macro),
+    esp(MACRO_BASE + 8, "Macro 9", "M9", Familia::Macro),
+    esp(MACRO_BASE + 9, "Macro 10", "M10", Familia::Macro),
+    esp(MACRO_BASE + 10, "Macro 11", "M11", Familia::Macro),
+    esp(MACRO_BASE + 11, "Macro 12", "M12", Familia::Macro),
+    esp(MACRO_BASE + 12, "Macro 13", "M13", Familia::Macro),
+    esp(MACRO_BASE + 13, "Macro 14", "M14", Familia::Macro),
+    esp(MACRO_BASE + 14, "Macro 15", "M15", Familia::Macro),
+    esp(MACRO_BASE + 15, "Macro 16", "M16", Familia::Macro),
     esp(0xFF00, "Alternar entre janelas (Alt + Tab)", "Alt+Tab", Familia::Teclado),
     esp(0xF200, "Restaurar o teclado de fábrica (segurando a tecla)", "Reset", Familia::Reservada),
     esp(0xF201, "Mudar para o layout Windows (segurando a tecla)", "Win", Familia::Reservada),
@@ -1567,7 +1847,52 @@ pub fn codigo_tecla(nome: &str) -> Option<u16> {
     if let Some(h) = nome.strip_prefix("0x") {
         return u16::from_str_radix(h, 16).ok();
     }
+    if let Some(n) = nome.strip_prefix("macro").and_then(|n| n.parse::<u8>().ok()) {
+        return (1..=MACROS_MAX).contains(&n).then(|| codigo_da_macro(n - 1));
+    }
     funcoes().into_iter().find(|(_, n)| *n == nome).map(|(c, _)| c)
+}
+
+#[cfg(test)]
+mod testes_macro {
+    use super::*;
+
+    #[test]
+    fn texto_vai_e_volta() {
+        for texto in ["+lctrl c -lctrl", "a b c", "+lshift 50ms a 120ms -lshift", "10ms +a 20ms -a"] {
+            let acoes = Macro::acoes_de_texto(texto).unwrap();
+            let m = Macro { valida: true, acoes, ..Default::default() };
+            assert!(m.validar().is_ok(), "{texto}");
+            assert_eq!(m.em_texto(), texto);
+        }
+        assert!(Macro::acoes_de_texto("+naoexiste").is_err());
+        assert!(Macro::acoes_de_texto("99999ms a").is_err());
+    }
+
+    #[test]
+    fn acao_cabe_em_quatro_bytes() {
+        let a = AcaoMacro { pressiona: true, espera: 32767, codigo: 0xE0 };
+        assert_eq!(a.para_o_teclado(), 0xFFFF_00E0);
+        assert_eq!(AcaoMacro::do_teclado(0xFFFF_00E0), a);
+        let b = AcaoMacro { pressiona: false, espera: 5, codigo: 0x04 };
+        assert_eq!(AcaoMacro::do_teclado(b.para_o_teclado()), b);
+    }
+
+    #[test]
+    fn valida_a_macro() {
+        let com = |texto: &str| Macro { valida: true, acoes: Macro::acoes_de_texto(texto).unwrap(), ..Default::default() };
+        assert!(Macro::default().validar().is_ok(), "vaga vazia");
+        assert!(com("+a").validar().is_err(), "pressiona e não solta");
+        assert!(com("-a").validar().is_err(), "solta sem pressionar");
+        assert!(com("macro2").validar().is_err(), "macro dentro de macro");
+        assert!(Macro { repeticoes: 0, ..com("a") }.validar().is_err());
+        assert!(Macro { valida: false, ..com("a") }.validar().is_err());
+        assert_eq!(codigo_tecla("macro1"), Some(MACRO_BASE));
+        assert_eq!(codigo_tecla("macro17"), None);
+        assert_eq!(nome_tecla(MACRO_BASE + 15), "macro16");
+        assert_eq!(ModoMacro::do_byte(4), ModoMacro::SegurarParaJa);
+        assert_eq!(ModoMacro::SegurarTermina.byte(), 5);
+    }
 }
 
 #[cfg(test)]

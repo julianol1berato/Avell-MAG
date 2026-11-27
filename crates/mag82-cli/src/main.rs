@@ -145,6 +145,26 @@ enum Comando {
         #[arg(long)]
         remover: bool,
     },
+    /// Mostra as macros ou grava uma (ex.: macro 1 --acoes "+lctrl c -lctrl")
+    ///
+    /// Nas ações, `+a` pressiona, `-a` solta, `a` faz as duas coisas e `50ms` é a espera antes
+    /// da ação seguinte. Para usar a macro, ligue uma tecla a ela: mag82 remapear f9 macro1
+    Macro {
+        /// Número da macro, a partir de 1
+        numero: Option<u8>,
+        /// As ações, em um texto só (ex.: "+lshift 50ms a -lshift")
+        #[arg(long)]
+        acoes: Option<String>,
+        /// Como a tecla dispara a macro
+        #[arg(long, value_enum, default_value = "toque")]
+        modo: ModoDaMacro,
+        /// Quantas vezes a macro roda a cada toque (de 1 a 9999)
+        #[arg(long, default_value_t = 1)]
+        repetir: u16,
+        /// Apaga a macro
+        #[arg(long)]
+        apagar: bool,
+    },
     /// Lista todas as teclas com função avançada (SOCD, RS, DKS, MPT, MT, TGL e END)
     Avancadas,
     /// Lista as interfaces USB do teclado
@@ -865,6 +885,43 @@ fn executar(args: Args) -> Resultado<()> {
             }
             listar_avancadas(&mut t, &mapa, |a| matches!(a, Avancada::Rs { .. }), "nenhum par RS configurado")?;
         }
+        Comando::Macro { numero, acoes, modo, repetir, apagar } => {
+            let (total, _) = t.espaco_de_macros()?;
+            let total = total.min(mag82::MACROS_MAX);
+            if let Some(numero) = numero {
+                if numero == 0 || numero > total {
+                    return invalido(format!("este teclado tem as macros de 1 a {total}"));
+                }
+                if apagar {
+                    t.apagar_macro(numero - 1)?;
+                } else if let Some(acoes) = acoes {
+                    let acoes = mag82::Macro::acoes_de_texto(&acoes)?;
+                    if acoes.is_empty() {
+                        return invalido("a macro precisa de pelo menos uma ação; para apagar use --apagar");
+                    }
+                    let modo = mag82::ModoMacro::TODOS[modo as usize];
+                    t.definir_macro(numero - 1, &mag82::Macro { valida: true, modo, repeticoes: repetir, acoes })?;
+                }
+            }
+            let mut achou = false;
+            for indice in 0..total {
+                let m = t.macro_gravada(indice)?;
+                if !m.valida && numero != Some(indice + 1) {
+                    continue;
+                }
+                achou = true;
+                if m.valida {
+                    let vezes = if m.modo.conta_repeticoes() { format!(", {} vez(es)", m.repeticoes) } else { String::new() };
+                    println!("macro {}: {}", indice + 1, m.em_texto());
+                    println!("    {}{vezes}", m.modo.descricao());
+                } else {
+                    println!("macro {}: vazia", indice + 1);
+                }
+            }
+            if !achou {
+                println!("nenhuma macro gravada (o teclado guarda {total})");
+            }
+        }
         Comando::Avancadas => {
             let mapa = mapa(&mut t)?;
             listar_avancadas(&mut t, &mapa, |_| true, "nenhuma tecla com função avançada")?;
@@ -942,6 +999,22 @@ fn executar(args: Args) -> Resultado<()> {
         }
     }
     Ok(())
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum ModoDaMacro {
+    /// Um toque roda; tocar de novo enquanto roda não faz nada
+    Toque,
+    /// Um toque roda; tocar de novo recomeça
+    ToqueRecomeca,
+    /// Um toque roda; tocar de novo para na hora
+    ToquePara,
+    /// Um toque roda; tocar de novo para ao fim da rodada
+    ToqueTermina,
+    /// Roda enquanto a tecla está pressionada; soltar para na hora
+    Segurar,
+    /// Roda enquanto a tecla está pressionada; soltar termina a rodada
+    SegurarTermina,
 }
 
 fn main() -> ExitCode {

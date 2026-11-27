@@ -315,6 +315,40 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
         ocioso(ui).await;
     }
     println!("avançadas removidas: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&INSERT]);
+
+    // ----- macros: monta, grava, liga a uma tecla, confere e desfaz -----
+    if ui.d.borrow().as_ref().unwrap().macros.is_some() {
+        let antes = ui.d.borrow().as_ref().unwrap().macros.as_ref().unwrap()[0].clone();
+        let acoes = mag82::Macro::acoes_de_texto("+lctrl c -lctrl 50ms v").unwrap();
+        let nova = mag82::Macro { valida: true, modo: mag82::ModoMacro::TODOS[1], repeticoes: 3, acoes };
+        ui.montar_macro(&nova);
+        ui.gravar_macro(false);
+        ocioso(ui).await;
+        let gravada = ui.d.borrow().as_ref().unwrap().macros.as_ref().unwrap()[0].clone();
+        println!("macro 1: gravada igual à montada={} ({})", gravada == nova, gravada.em_texto());
+        fotografar(ui, prefixo, "macros", "macros").await;
+        ui.mudar_modo(Modo::Remapear);
+        ui.selecionar(&[W]);
+        let macro1 = t.funcoes.iter().position(|(c, _)| *c == mag82::codigo_da_macro(0)).unwrap();
+        t.funcao.set_selected(macro1 as u32);
+        ui.aplicar_funcao(false);
+        ocioso(ui).await;
+        println!("W ligada à macro 1: {}", mag82::nome_tecla(ui.d.borrow().as_ref().unwrap().atual[&W]));
+        ui.aplicar_funcao(true);
+        ocioso(ui).await;
+        ui.marcar(false);
+        if antes.valida {
+            ui.montar_macro(&antes);
+            ui.gravar_macro(false);
+        } else {
+            ui.gravar_macro(true);
+        }
+        ocioso(ui).await;
+        println!("macro 1 de volta ao que era: {}", ui.d.borrow().as_ref().unwrap().macros.as_ref().unwrap()[0] == antes);
+    } else {
+        println!("este teclado não tem macros");
+    }
+    ui.mudar_modo(Modo::Atuacao);
     ui.marcar(false);
     ui.mudar_modo(Modo::Atuacao);
 

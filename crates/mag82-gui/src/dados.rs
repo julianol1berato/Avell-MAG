@@ -25,6 +25,8 @@ pub struct Dados {
     pub grade: Grade,
     pub atuacao: BTreeMap<Pos, Atuacao>,
     pub avancada: BTreeMap<Pos, Avancada>,
+    /// As macros gravadas no teclado; `None` se ele não responde aos pedidos de macro.
+    pub macros: Option<Vec<mag82::Macro>>,
     /// Luz das teclas.
     pub luz: Luz,
     pub paleta: Paleta,
@@ -70,6 +72,10 @@ impl Dados {
         };
         Ok(Self {
             avancada,
+            macros: match t.espaco_de_macros() {
+                Ok((total, _)) => Some((0..total.min(mag82::MACROS_MAX)).map(|i| t.macro_gravada(i)).collect::<Resultado<Vec<_>>>()?),
+                Err(_) => None,
+            },
             perfis,
             perfil_atual,
             taxas,
