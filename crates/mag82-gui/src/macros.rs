@@ -128,7 +128,7 @@ impl PainelMacros {
             .build();
         let repeticoes = adw::SpinRow::with_range(1.0, f64::from(MACRO_REPETICOES_MAX), 1.0);
         repeticoes.set_title("Repetições");
-        repeticoes.set_subtitle("Quantas vezes a macro roda a cada toque");
+        repeticoes.set_subtitle("Quantas vezes a macro roda a cada disparo; nos modos de segurar, ela para ao completar");
         g_modo.add(&modo);
         g_modo.add(&repeticoes);
 
@@ -255,8 +255,6 @@ pub fn ligar(ui: &Rc<Ui>) {
         PainelMacros::acrescentar(&ui2, Passo { tipo: 0, codigo: primeira, espera: 0 });
     });
     let ui2 = ui.clone();
-    p.modo.connect_selected_notify(move |_| ui2.macros.repeticoes.set_sensitive(ui2.macros.modo.selected() < 4));
-    let ui2 = ui.clone();
     p.gravar.connect_clicked(move |_| ui2.gravar_macro(false));
     let ui2 = ui.clone();
     p.apagar.connect_clicked(move |_| ui2.gravar_macro(true));
@@ -317,7 +315,6 @@ impl Ui {
         }
         p.modo.set_selected(u32::from(m.modo.byte()));
         p.repeticoes.set_value(f64::from(m.repeticoes.max(1)));
-        p.repeticoes.set_sensitive(m.modo.conta_repeticoes());
     }
 
     /// Grava no teclado a macro montada na tela, ou apaga a escolhida.

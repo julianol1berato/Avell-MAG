@@ -28,14 +28,19 @@ const TIPOS: [(&str, &str, &str); 5] = [
         "tgl",
         "Contínuo (TGL)",
         "Um toque deixa a função pressionada, como se você continuasse segurando; outro toque solta. \
-         Serve para correr ou andar sem segurar a tecla.",
+         Segurando a tecla, ela funciona como uma tecla comum. Serve para correr ou andar sem segurar a tecla.",
     ),
     (
         "mpt",
         "Multiponto (MPT)",
-        "Até três funções na mesma tecla, cada uma a partir de uma profundidade: toque leve, médio e fundo.",
+        "Até três funções na mesma tecla, cada uma a partir de uma profundidade. Elas se somam: \
+         apertando até o fundo, saem as três.",
     ),
-    ("end", "Ao soltar (END)", "A tecla envia uma função ao ser pressionada e outra ao ser solta."),
+    (
+        "end",
+        "Ao soltar (END)",
+        "A tecla envia uma função ao ser pressionada, que repete enquanto ela está segurada, e outra ao ser solta.",
+    ),
 ];
 
 /// Lista de funções com busca; a primeira opção é a vaga livre.

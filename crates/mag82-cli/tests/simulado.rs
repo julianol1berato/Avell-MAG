@@ -90,7 +90,7 @@ fn macros() {
     assert!(texto.contains("macro 3: +lctrl c -lctrl 50ms v"), "{texto}");
     assert!(texto.contains("2 vez(es)"), "{texto}");
     let texto = ok(&["macro", "1", "--acoes", "a b", "--modo", "segurar"]);
-    assert!(texto.contains("Roda enquanto a tecla está pressionada; soltar para na hora"), "{texto}");
+    assert!(texto.contains("Roda enquanto a tecla está pressionada, até as repetições; soltar para na hora, 1 vez(es)"), "{texto}");
     assert!(ok(&["remapear", "f9", "macro3"]).contains("f9         -> macro3"));
     // as macros dividem 224 ações: uma de 240 não cabe
     let longa = vec!["a"; 120].join(" ");

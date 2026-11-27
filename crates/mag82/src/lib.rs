@@ -903,15 +903,17 @@ pub fn macro_do_codigo(codigo: u16) -> Option<u8> {
     codigo.checked_sub(MACRO_BASE).filter(|i| *i < u16::from(MACROS_MAX)).map(|i| i as u8)
 }
 
-/// O que acontece quando a tecla da macro é usada.
+/// O que acontece quando a tecla da macro é usada. Os seis modos foram conferidos digitando.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModoMacro {
     /// Um toque roda a macro o número de vezes pedido; o campo diz o que faz um toque novo
     /// enquanto ela ainda está rodando.
     Toque(ToqueNovo),
-    /// Roda enquanto a tecla está pressionada e para na hora ao soltar.
+    /// Roda enquanto a tecla está pressionada, até completar as repetições, e para na hora ao
+    /// soltar.
     SegurarParaJa,
-    /// Roda enquanto a tecla está pressionada e, ao soltar, termina a rodada em curso.
+    /// Roda enquanto a tecla está pressionada, até completar as repetições; ao soltar, termina a
+    /// rodada em curso e para.
     SegurarTermina,
 }
 
@@ -942,19 +944,14 @@ impl ModoMacro {
         Self::TODOS.get(byte as usize).copied().unwrap_or(Self::TODOS[0])
     }
 
-    /// Verdadeiro nos modos em que o número de repetições vale (os de toque).
-    pub fn conta_repeticoes(self) -> bool {
-        matches!(self, ModoMacro::Toque(_))
-    }
-
     pub fn descricao(self) -> &'static str {
         match self {
             ModoMacro::Toque(ToqueNovo::Ignora) => "Um toque roda; tocar de novo enquanto roda não faz nada",
             ModoMacro::Toque(ToqueNovo::Recomeca) => "Um toque roda; tocar de novo recomeça",
             ModoMacro::Toque(ToqueNovo::ParaJa) => "Um toque roda; tocar de novo para na hora",
             ModoMacro::Toque(ToqueNovo::ParaAoTerminar) => "Um toque roda; tocar de novo para ao fim da rodada",
-            ModoMacro::SegurarParaJa => "Roda enquanto a tecla está pressionada; soltar para na hora",
-            ModoMacro::SegurarTermina => "Roda enquanto a tecla está pressionada; soltar termina a rodada",
+            ModoMacro::SegurarParaJa => "Roda enquanto a tecla está pressionada, até as repetições; soltar para na hora",
+            ModoMacro::SegurarTermina => "Roda enquanto a tecla está pressionada, até as repetições; soltar termina a rodada",
         }
     }
 }
@@ -985,7 +982,8 @@ pub struct Macro {
     /// Falso na vaga vazia.
     pub valida: bool,
     pub modo: ModoMacro,
-    /// Quantas vezes a macro roda a cada toque (modos de toque).
+    /// Quantas vezes a macro roda a cada disparo. Vale em todos os modos: nos de segurar, a
+    /// macro para sozinha ao completar as repetições, mesmo com a tecla ainda pressionada.
     pub repeticoes: u16,
     pub acoes: Vec<AcaoMacro>,
 }
