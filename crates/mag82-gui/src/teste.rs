@@ -195,7 +195,9 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
 
     // ----- curso ao vivo: liga a chave e espera uma leitura com alguma tecla afundada -----
     ui.marcar(false);
-    ui.curso.ligado.set_active(true);
+    // em silêncio: o autoteste não mexe na preferência guardada de quem o roda
+    ui.silencioso(|| ui.curso.ligado.set_active(false));
+    ui.silencioso(|| ui.curso.ligado.set_active(true));
     let mut visto = None;
     for _ in 0..60 {
         pausa(50).await;
@@ -207,7 +209,7 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     }
     println!("curso ao vivo: tecla afundada vista={:?}", visto.map(|(p, _)| p));
     fotografar(ui, prefixo, "teclas", "teclas-curso").await;
-    ui.curso.ligado.set_active(false);
+    ui.silencioso(|| ui.curso.ligado.set_active(false));
     ui.selecionar(&[W]);
 
     // ----- predefinição: preenche e marca como editado, sem gravar -----

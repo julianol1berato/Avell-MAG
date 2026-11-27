@@ -37,7 +37,7 @@ impl PainelCurso {
         gtk::style_context_add_provider_for_display(tela, &css, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
         let ligado = adw::SwitchRow::builder()
             .title("Curso ao vivo")
-            .subtitle("Aperte uma tecla devagar para ver o quanto ela afunda e onde fica o ponto de atuação")
+            .subtitle("Mostra o quanto cada tecla afunda e onde fica o ponto de atuação dela")
             .build();
         let barra = gtk::DrawingArea::builder().content_height(34).hexpand(true).visible(false).build();
         let legenda = gtk::Label::builder().xalign(0.0).css_classes(["dim-label", "caption"]).visible(false).build();
@@ -73,6 +73,12 @@ pub fn ligar(ui: &Rc<Ui>) {
     let ui2 = ui.clone();
     p.ligado.connect_active_notify(move |chave| {
         let p = &ui2.curso;
+        // a escolha fica guardada: da próxima vez o programa abre do jeito que o usuário deixou
+        if !ui2.carregando.get() {
+            let mut config = crate::atualizacao::Config::ler();
+            config.curso_ao_vivo = chave.is_active();
+            config.gravar();
+        }
         p.barra.set_visible(chave.is_active());
         p.legenda.set_visible(chave.is_active());
         if !chave.is_active() {
@@ -82,6 +88,8 @@ pub fn ligar(ui: &Rc<Ui>) {
         }
         ui2.descrever_curso();
     });
+    // vem ligado, a não ser que o usuário tenha desligado antes
+    ui.silencioso(|| p.ligado.set_active(crate::atualizacao::Config::ler().curso_ao_vivo));
     let ui2 = ui.clone();
     p.barra.set_draw_func(move |_, cr, largura, altura| ui2.desenhar_curso(cr, f64::from(largura), f64::from(altura)));
     let ui2 = ui.clone();
@@ -96,7 +104,10 @@ impl Ui {
     /// mais está na fila.
     fn ler_cursos(self: &Rc<Self>) {
         let p = &self.curso;
-        let a_vista = self.pilha.visible_child_name().as_deref() == Some("teclas")
+        // só com a janela em uso: em segundo plano o programa não fica consultando o teclado
+        // (o autoteste roda sem gerenciador de janelas, onde nenhuma janela conta como em uso)
+        let a_vista = (self.janela.is_active() || cfg!(feature = "autoteste"))
+            && self.pilha.visible_child_name().as_deref() == Some("teclas")
             && self.tec.modo.get() == Modo::Atuacao
             && p.barra.is_mapped();
         if !p.ligado.is_active() || !a_vista || p.pendente.get() || self.ocupado.get() > 0 || self.d.borrow().is_none() {
