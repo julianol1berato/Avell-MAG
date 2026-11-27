@@ -1205,9 +1205,13 @@ fn validar_par(nome: &str, cod_a: u16, cod_b: u16) -> Resultado<()> {
     }
 }
 
-/// Maior atraso, em milissegundos, aceito nos pares (RS) e no acionamento ao soltar.
+/// Maior atraso, em milissegundos, aceito nos pares (RS) e no acionamento ao soltar. É um limite
+/// do programa: o teclado guardou os valores testados até 65535 e, no ao soltar, respeitou 500 ms
+/// (firmware 0.0.2.0).
+/// No ao soltar, o atraso é a espera entre soltar a tecla e enviar a função de soltar.
 pub const ATRASO_MAX: u16 = 50;
-/// Faixa do tempo, em milissegundos, que separa toque de segurar (MT e TGL).
+/// Faixa do tempo, em milissegundos, que separa toque de segurar (MT e TGL). É uma faixa do
+/// programa: o teclado guardou os valores testados de 0 a 65535 e, na dupla função, respeitou 2000 ms.
 pub const TEMPO_MIN: u16 = 10;
 pub const TEMPO_MAX: u16 = 1000;
 

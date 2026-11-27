@@ -10,8 +10,12 @@ O que falta fazer ou conferir. O que já foi decidido como "fica assim" está no
 
 ## Falta conferir
 
-- [ ] Atraso do END e do RS e o modo de macro em que tocar de novo não faz nada: ver a
-      [issue #19](https://github.com/julianol1berato/Avell-MAG/issues/19). O resto das teclas avançadas e das macros foi conferido digitando.
+- [ ] Atraso do RS: com 0 e com 50 ms o teclado se comportou igual (A no fundo, D até o fundo: as
+      duas saem; soltando, cada uma sai na sua vez). Com 500 ms as duas teclas alternaram antes de
+      saírem juntas, mas a espera não foi constante, e o que o atraso significa continua sem
+      resposta. Ver a [issue #19](https://github.com/julianol1berato/Avell-MAG/issues/19). O
+      resto das teclas avançadas e das macros foi conferido digitando, inclusive o atraso do
+      "ao soltar" e a macro em que tocar de novo não faz nada.
 - [ ] A instalação da versão nova por `.deb` (via `pkexec apt-get`) nunca foi exercitada. Por
       `.rpm` e em `~/.local` foi, com versões publicadas.
 - [ ] Seleção por arrasto e atalhos (Ctrl+A, Esc, F5) não têm teste automático: o autoteste chama
@@ -38,6 +42,9 @@ O que falta fazer ou conferir. O que já foi decidido como "fica assim" está no
   energia, `kill -9`) é desfeita na abertura seguinte.
 - O configurador web no navegador não usa a trava do dispositivo deste programa; contra ele a
   proteção é só a conferência do pedido nas leituras. Não use os dois ao mesmo tempo.
+- O teclado guardou todos os tempos e atrasos testados nas teclas avançadas, de 0 a 65535 ms, e respeita
+  valores acima dos limites do programa: um "ao soltar" com 500 ms esperou 500 ms, e uma dupla
+  função com 2000 ms separou toque de segurar em 2 segundos (firmware 0.0.2.0).
 - Os limites de tempo (10 a 1000 ms) e de atraso (0 a 50 ms) das teclas avançadas são uma faixa
   prudente, não um limite lido do teclado.
 
