@@ -107,6 +107,7 @@ E mais:
 - **SOCD** para teclas opostas (A/D, W/S): vale a última, uma delas sempre vence, ou nenhuma.
 - **Teclas avançadas**: DKS (até quatro funções por ponto do curso), dupla função (toque e segurar),
   contínuo, multiponto, ao soltar e RS (entre duas teclas, vale a mais pressionada).
+  Veja [o que cada uma aceita](#o-que-as-teclas-avançadas-aceitam).
 - **Linha de comando** com tudo o que a interface faz.
 - **Sem root**: roda como usuário comum.
 
@@ -192,6 +193,34 @@ mag82 calibrar
 ```
 
 `mag82 --help` lista o resto.
+
+## O que as teclas avançadas aceitam
+
+O teclado só aceita **teclas comuns** dentro de uma função avançada. Vale para todos os tipos e
+para todas as vagas de cada um:
+
+| Função | DKS | Multiponto | Dupla função | Contínuo | Ao soltar | Pares (SOCD e RS) |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| Letras, números, F1 a F12, setas, Enter, Espaço… | sim | sim | sim | sim | sim | sim |
+| Ctrl, Shift, Alt e Super (dos dois lados) | sim | sim | sim | sim | sim | sim |
+| Tecla com Ctrl, Shift, Alt ou Super esquerdos (ex.: Ctrl + D) | sim | sim | sim | sim | sim | sim |
+| Tecla com modificador do lado direito | não | não | não | não | não | não |
+| Multimídia (volume, faixas, player, navegador…) | não | não | não | não | não | não |
+| Luz das teclas e luz lateral | não | não | não | não | não | não |
+| Perfis, trava da tecla Super, Alt + Tab | não | não | não | não | não | não |
+| Macros | não | não | não | não | não | não |
+
+Nos pares, a "função" é o que cada uma das duas teclas envia: uma tecla remapeada para volume, por
+exemplo, não entra num par.
+
+As funções que não entram aqui continuam valendo direto na tecla (**Teclas → Funções**) e nos
+atalhos com Fn. Por isso as listas do modo **Avançada** só mostram teclas comuns, e a linha de
+comando recusa o resto antes de gravar, dizendo qual função não serve. As combinações com
+modificador só aparecem pela linha de comando, com o código (`--acao 0x0107:0.5` é Ctrl + D).
+
+A tabela foi medida no teclado (firmware 0.0.2.0), função por função; as respostas estão em
+[`crates/mag82/src/avancadas-medidas.txt`](crates/mag82/src/avancadas-medidas.txt) e os testes
+conferem o programa contra elas.
 
 ## Calibração
 

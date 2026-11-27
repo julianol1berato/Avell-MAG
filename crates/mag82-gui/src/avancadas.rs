@@ -44,6 +44,12 @@ const TIPOS: [(&str, &str, &str); 5] = [
     ),
 ];
 
+/// O que pode ir numa função avançada, mostrado embaixo da explicação de cada tipo. O teclado
+/// recusa o resto (ver [`mag82::serve_em_avancada`]), por isso as listas só trazem teclas comuns.
+const SO_TECLAS_COMUNS: &str = "As funções daqui são sempre teclas comuns: letras, números, F1 a F12, setas, Ctrl, \
+    Shift, Alt… O teclado não aceita multimídia, luzes, perfis nem macros numa função avançada; essas vão direto \
+    na tecla, no modo Funções.";
+
 /// Lista de funções para o fim de uma linha, com busca; a primeira opção é a vaga livre.
 fn funcao_na_linha(nomes: &gtk::StringList) -> gtk::DropDown {
     let lista = gtk::DropDown::builder()
@@ -105,7 +111,7 @@ struct FuncaoDks {
 pub struct PainelAvancadas {
     pub painel: gtk::Box,
     /// (código, descrição) de cada opção das listas; a primeira é a vaga livre.
-    opcoes: Vec<(u16, String)>,
+    pub opcoes: Vec<(u16, String)>,
     /// Seletor do tipo, mostrado pela página Teclas logo abaixo da linha da seleção.
     pub tipos: gtk::Box,
     tipo_btns: Vec<gtk::ToggleButton>,
@@ -132,7 +138,8 @@ pub struct PainelAvancadas {
 }
 
 impl PainelAvancadas {
-    /// `teclas` são as funções que uma ação pode enviar: (código, descrição).
+    /// `teclas` são as funções que uma ação pode enviar: (código, descrição). Só as que o teclado
+    /// aceita numa função avançada (ver [`mag82::serve_em_avancada`]).
     pub fn construir(teclas: &[(u16, String)]) -> Self {
         let mut opcoes = vec![(0, "Nenhuma".to_string())];
         opcoes.extend(teclas.iter().cloned());
@@ -298,7 +305,7 @@ impl PainelAvancadas {
     fn trocar_tipo(&self) {
         let (nome, _, explicacao) = TIPOS[self.tipo()];
         self.paineis.set_visible_child_name(nome);
-        self.explicacao.set_label(explicacao);
+        self.explicacao.set_label(&format!("{explicacao}\n{SO_TECLAS_COMUNS}"));
     }
 
     /// Posição, em [`TIPOS`], do tipo escolhido no seletor.

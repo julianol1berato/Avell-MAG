@@ -337,6 +337,86 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     }
     println!("avançadas removidas: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&INSERT]);
 
+    // ----- o que as listas oferecem é o que o teclado aceita: cada função oferecida é gravada em
+    //       cada tipo, e nenhuma função especial do catálogo passa em nenhum deles -----
+    let oferecidas: Vec<u16> = ui.av.opcoes.iter().map(|(c, _)| *c).filter(|c| *c != 0).collect();
+    let total = oferecidas.len();
+    ui.pedir_bruto(
+        false,
+        move |t| {
+            let tipos = |c: u16| {
+                [
+                    mag82::Avancada::Dks(mag82::Dks { teclas: [c, 0, 0, 0], gatilhos: [1, 0, 0, 0], ..Default::default() }),
+                    mag82::Avancada::Mt(mag82::Mt { toque: c, segura: c, tempo: 200 }),
+                    mag82::Avancada::Tgl(mag82::Tgl { tecla: c, tempo: 200 }),
+                    mag82::Avancada::Mpt(mag82::Mpt { teclas: [c, 0, 0], pontos: [500, 1500, 2500] }),
+                    mag82::Avancada::End(mag82::End { ao_pressionar: c, ao_soltar: c, atraso: 0 }),
+                ]
+            };
+            let gravar = |t: &mut mag82::Teclado, avancada: &mag82::Avancada| match avancada {
+                mag82::Avancada::Dks(dks) => t.definir_dks(INSERT, dks),
+                mag82::Avancada::Mt(mt) => t.definir_mt(INSERT, mt),
+                mag82::Avancada::Tgl(tgl) => t.definir_tgl(INSERT, tgl),
+                mag82::Avancada::Mpt(mpt) => t.definir_mpt(INSERT, mpt),
+                mag82::Avancada::End(end) => t.definir_end(INSERT, end),
+                _ => Ok(()),
+            };
+            let mut recusadas: Vec<String> = Vec::new();
+            for codigo in &oferecidas {
+                for avancada in tipos(*codigo) {
+                    if gravar(t, &avancada).is_err() || t.avancada(INSERT)? != avancada {
+                        recusadas.push(format!("{codigo:#06x} em {}", crate::avancadas::sigla(&avancada).unwrap_or("?")));
+                    }
+                }
+            }
+            let mut especiais_aceitas: Vec<String> = Vec::new();
+            for e in mag82::ESPECIAIS.iter().filter(|e| e.codigo != 0 && e.familia != mag82::Familia::Reservada) {
+                for avancada in tipos(e.codigo) {
+                    if gravar(t, &avancada).is_ok() {
+                        especiais_aceitas.push(format!("{} em {}", e.nome, crate::avancadas::sigla(&avancada).unwrap_or("?")));
+                    }
+                }
+            }
+            t.remover_avancada(INSERT)?;
+            Ok((recusadas, especiais_aceitas))
+        },
+        move |_, r| match r {
+            Ok((recusadas, especiais_aceitas)) => {
+                println!("avançadas: {total} funções oferecidas em 5 tipos, recusadas pelo teclado={recusadas:?}");
+                println!("avançadas: funções especiais aceitas={especiais_aceitas:?}");
+            }
+            Err(e) => println!("avançadas: a conferência das funções falhou: {e}"),
+        },
+    );
+    ocioso(ui).await;
+
+    // ----- par com uma tecla que envia função de multimídia: avisa e não grava nada -----
+    ui.mudar_modo(Modo::Remapear);
+    ui.selecionar(&[A]);
+    let volume = t.funcoes.iter().position(|(c, _)| *c == 0x20E9).unwrap();
+    t.funcao.set_selected(volume as u32);
+    ui.aplicar_funcao(false);
+    ocioso(ui).await;
+    ui.mudar_modo(Modo::Socd);
+    ui.selecionar(&[A, D]);
+    for opcao in [3, 4] {
+        t.socd_modo.set_selected(opcao);
+        ui.aplicar_socd();
+        ocioso(ui).await;
+    }
+    {
+        let dados = ui.d.borrow();
+        let d = dados.as_ref().unwrap();
+        println!("par com tecla de multimídia: A={:?} D={:?} (A envia {:#06x})", d.avancada[&A], d.avancada[&D], d.atual[&A]);
+    }
+    ui.mudar_modo(Modo::Remapear);
+    ui.selecionar(&[A]);
+    ui.aplicar_funcao(true);
+    ocioso(ui).await;
+    println!("função A restaurada: {}", mag82::nome_tecla(ui.d.borrow().as_ref().unwrap().atual[&A]));
+    ui.mudar_modo(Modo::Avancada);
+    ui.selecionar(&[INSERT]);
+
     // ----- macros: monta, grava, liga a uma tecla, confere e desfaz -----
     if ui.d.borrow().as_ref().unwrap().macros.is_some() {
         let antes = ui.d.borrow().as_ref().unwrap().macros.as_ref().unwrap()[0].clone();

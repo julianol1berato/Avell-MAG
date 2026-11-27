@@ -131,6 +131,13 @@ impl Simulado {
                     }
                 }
             }
+            // como o teclado de verdade: função que não é tecla comum é recusada, com 0xFF no
+            // lugar do tipo, e a tecla fica como estava
+            [grupo::TECLA_AVANCADA, 2, linha, coluna, ref resto @ ..] if !funcoes_servem(resto) => {
+                let mut recusa = [0u8; TAM];
+                recusa[..5].copy_from_slice(&[grupo::TECLA_AVANCADA, 2, linha, coluna, 0xFF]);
+                return Some(recusa);
+            }
             [grupo::TECLA_AVANCADA, 2, linha, coluna, ref resto @ ..] => {
                 let guardado = self.guardada(&[grupo::TECLA_AVANCADA, 1, linha, coluna])?;
                 guardado[4..].fill(0);
@@ -204,6 +211,25 @@ impl Simulado {
     }
 }
 
+/// Confere as funções de uma gravação de tecla avançada (`corpo` começa no tipo), como o
+/// teclado faz: só servem teclas comuns (ver [`crate::serve_em_avancada`]).
+fn funcoes_servem(corpo: &[u8]) -> bool {
+    // onde ficam as funções, em cada tipo: DKS, multiponto, dupla função, contínuo, ao soltar e,
+    // nos pares (SOCD e RS), depois da posição da outra tecla
+    let (inicio, quantas) = match corpo.first() {
+        Some(1) => (1, 4),
+        Some(2) => (1, 3),
+        Some(3) | Some(5) => (1, 2),
+        Some(4) => (1, 1),
+        Some(6) | Some(7) => (3, 2),
+        _ => return true,
+    };
+    (0..quantas).all(|i| {
+        let em = inicio + 2 * i;
+        corpo.get(em..em + 2).map_or(true, |c| crate::serve_em_avancada(u16::from_le_bytes([c[0], c[1]])))
+    })
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -225,5 +251,21 @@ mod testes {
         s.responder(&[grupo::LAYOUT, 4, 0, 2, 2, 0x0e, 0]).unwrap();
         assert_eq!(s.responder(&[grupo::LAYOUT, 3, 0, 2, 2]).unwrap()[5], 0x0e);
         assert_eq!(s.responder(&[grupo::LAYOUT, 1, 0, 2]).unwrap()[4 + 4], 0x0e);
+    }
+
+    #[test]
+    fn avancada_com_funcao_especial_e_recusada() {
+        let mut s = Simulado::novo();
+        // multiponto na tecla Insert com "aumentar o volume" (0x20E9): recusado, nada gravado
+        let recusa = s.responder(&[grupo::TECLA_AVANCADA, 2, 1, 14, 2, 0xE9, 0x20, 0, 0, 0, 0, 0xF4, 1, 0xDC, 5, 0xC4, 9]).unwrap();
+        assert_eq!(recusa[..6], [grupo::TECLA_AVANCADA, 2, 1, 14, 0xFF, 0]);
+        assert_eq!(s.responder(&[grupo::TECLA_AVANCADA, 1, 1, 14]).unwrap()[4], 0);
+        // com teclas comuns é aceito e aparece na leitura
+        let aceito = s.responder(&[grupo::TECLA_AVANCADA, 2, 1, 14, 2, 0x1A, 0, 0xE1, 0, 0, 0, 0xF4, 1, 0xDC, 5, 0xC4, 9]).unwrap();
+        assert_eq!(aceito[4..8], [2, 0x1A, 0, 0xE1]);
+        assert_eq!(s.responder(&[grupo::TECLA_AVANCADA, 1, 1, 14]).unwrap()[4..8], [2, 0x1A, 0, 0xE1]);
+        // par SOCD em que uma das teclas envia uma função de luz (0xF301)
+        let par = s.responder(&[grupo::TECLA_AVANCADA, 2, 3, 1, 6, 3, 3, 0x01, 0xF3, 0x07, 0, 0, 0, 0]).unwrap();
+        assert_eq!(par[4], 0xFF);
     }
 }
