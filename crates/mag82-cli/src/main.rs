@@ -138,7 +138,7 @@ enum Comando {
     Rs {
         /// As duas teclas do par
         teclas: Vec<String>,
-        /// Atraso em ms (de 0 a 50)
+        /// Atraso em ms (de 0 a 50); o teclado guarda, mas não se mediu efeito nenhum dele no RS
         #[arg(long, default_value_t = 0)]
         atraso: u16,
         /// Remove o RS das teclas informadas e de seus pares
