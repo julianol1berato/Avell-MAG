@@ -83,6 +83,31 @@ fn recusa_avancadas_invalidas() {
     }
 }
 
+/// O teclado só aceita teclas comuns nas funções avançadas: multimídia, luzes, perfis e macros
+/// são recusados antes de gravar, com o nome da função, e a tecla fica como estava.
+#[test]
+fn avancadas_recusam_funcoes_especiais() {
+    for args in [
+        &["mpt", "insert", "--acao", "0x20e9:0.5", "--acao", "0x20b5:1.5", "--acao", "0x2183:2.5"][..],
+        &["mt", "caps", "--toque", "0x20e9", "--segura", "lctrl"],
+        &["tgl", "f8", "--funcao", "0xf301"],
+        &["end", "q", "--pressionar", "q", "--soltar", "macro1"],
+        &["dks", "insert", "--acao", "0xf205:1"],
+    ] {
+        let (certo, texto) = mag82(args);
+        assert!(!certo, "mag82 {args:?} deveria ser recusado:\n{texto}");
+        assert!(texto.contains("só aceitam teclas comuns"), "{texto}");
+        assert!(!texto.contains("não confirmou"), "{texto}");
+    }
+    let (_, texto) = mag82(&["mpt", "insert", "--acao", "0x20e9:0.5"]);
+    assert!(texto.contains("\"Aumentar o volume\" não pode ser usada no multiponto"), "{texto}");
+    // tecla com modificador esquerdo (Ctrl+D) é tecla comum para o teclado
+    assert!(ok(&["mpt", "insert", "--acao", "0x0107:0.5"]).contains("insert: multiponto"));
+    // o que a biblioteca deixa passar e o teclado recusa aparece como recusa, na hora
+    let (certo, texto) = mag82(&["bruto", "0602010e02e920"]);
+    assert!(certo && texto.starts_with("06 02 01 0e ff"), "{texto}");
+}
+
 #[test]
 fn macros() {
     assert!(ok(&["macro"]).contains("nenhuma macro gravada (o teclado guarda 8)"));
