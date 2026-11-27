@@ -1162,31 +1162,56 @@ const RECUSADA: u8 = 0xFF;
 /// multiponto, da dupla função, do contínuo e do ao soltar, e como função de uma tecla de um par
 /// SOCD ou RS.
 ///
-/// O teclado só aceita ali **teclas comuns**, sozinhas ou com modificadores do lado esquerdo
-/// (Ctrl, Shift, Alt, Super): na prática, os códigos abaixo de `0x1000`. O resto ele recusa, em
-/// qualquer tipo e em qualquer vaga: multimídia (`0x2…`), luzes, perfis, macros e as outras
-/// funções do próprio teclado (`0xF…`), e as combinações com modificador do lado direito
-/// (`0x10…` a `0x1F…`).
+/// Só servem **teclas comuns, sozinhas**: os códigos abaixo de `0x100`.
+///
+/// O teclado recusa, em qualquer tipo e em qualquer vaga, os códigos de `0x1000` em diante:
+/// multimídia (`0x2…`), luzes, perfis, macros e as outras funções do próprio teclado (`0xF…`),
+/// e as teclas com modificadores marcadas com o bit `0x10` no byte alto (`0x10…` a `0x1F…`).
+///
+/// Os códigos de `0x0100` a `0x0FFF` (uma tecla com Ctrl, Shift, Alt ou Super no byte alto) ele
+/// aceita gravar e devolve na leitura, mas **não envia o modificador**: digitando, um multiponto,
+/// um contínuo, um DKS e uma tecla remapeada com `0x0107` (Ctrl + D) enviaram só o D. Por isso
+/// também não servem: gravá-los daria uma função que parece uma coisa e faz outra.
 ///
 /// Medido no teclado (firmware 0.0.2.0) gravando na tecla Insert: as 88 teclas de [`funcoes`]
 /// (todas menos a Fn) no multiponto e uma amostra delas nos outros tipos, todas aceitas; todas
 /// as funções de [`ESPECIAIS`] fora as reservadas, nos cinco tipos, todas recusadas; combinações
-/// com modificadores `0x01` a `0x0F` aceitas e de `0x10` a `0x1F` recusadas; e, nos pares, uma
-/// função de cada família. As funções reservadas não foram enviadas. As respostas estão em
-/// `avancadas-medidas.txt`, e os testes conferem esta função contra elas.
+/// com modificadores `0x01` a `0x0F` (as quinze, em todos os tipos e nos pares) aceitas e de
+/// `0x10` a `0x1F` recusadas; e, nos pares, uma função de cada família. As funções reservadas não
+/// foram enviadas. As respostas estão em `avancadas-medidas.txt`, e os testes conferem esta
+/// função contra elas.
 pub fn serve_em_avancada(codigo: u16) -> bool {
+    codigo < 0x100
+}
+
+/// Verdadeiro se o teclado aceita gravar a função numa tecla avançada (ver
+/// [`serve_em_avancada`]): inclui as teclas com modificadores, que ele grava mas não envia como
+/// combinação. É o que o teclado simulado imita.
+pub fn teclado_aceita_em_avancada(codigo: u16) -> bool {
     codigo < 0x1000
 }
 
 /// Nome de uma função para mensagens: o do catálogo de especiais ou o da tecla.
 fn nome_da_funcao(codigo: u16) -> String {
-    especial(codigo).map_or_else(|| nome_tecla(codigo), |e| e.nome.to_string())
+    if let Some(e) = especial(codigo) {
+        return e.nome.to_string();
+    }
+    match combinacao(codigo) {
+        Some((modificadores, tecla)) => format!("{} + {}", modificadores.join(" + "), nome_tecla(tecla)),
+        None => nome_tecla(codigo),
+    }
 }
 
 /// Recusa, antes de gravar, as funções que o teclado não aceita numa função avançada (ver
 /// [`serve_em_avancada`]). `onde` completa a frase: "no multiponto", "na dupla função".
 fn validar_funcoes(onde: &str, codigos: &[u16]) -> Resultado<()> {
     match codigos.iter().find(|c| !serve_em_avancada(**c)) {
+        // o teclado grava, mas ao digitar sai só a tecla
+        Some(codigo) if teclado_aceita_em_avancada(*codigo) => Err(Erro::Invalido(format!(
+            "\"{}\" não pode ser usada {onde}: numa função avançada o teclado envia só a tecla, sem Ctrl, Shift, \
+             Alt ou Super",
+            nome_da_funcao(*codigo)
+        ))),
         Some(codigo) => Err(Erro::Invalido(format!(
             "\"{}\" não pode ser usada {onde}: funções avançadas só aceitam teclas comuns (letras, números, \
              F1 a F12, setas, Ctrl, Shift, Alt…)",
@@ -2215,9 +2240,11 @@ mod testes {
         for (codigo, _) in funcoes().into_iter().filter(|(c, _)| *c != TECLA_FN) {
             assert!(serve_em_avancada(codigo), "{codigo:#06x}");
         }
-        assert!(serve_em_avancada(0x0107) && serve_em_avancada(0x0F04));
-        // modificador direito e todas as funções especiais
-        assert!(!serve_em_avancada(0x1004) && !serve_em_avancada(0x1F04) && !serve_em_avancada(TECLA_FN));
+        // tecla com modificadores: o teclado grava, mas envia só a tecla; não serve
+        assert!(!serve_em_avancada(0x0107) && !serve_em_avancada(0x0F04));
+        assert!(teclado_aceita_em_avancada(0x0107) && teclado_aceita_em_avancada(0x0F04));
+        // o que o teclado recusa: modificadores com o bit 0x10 e as funções especiais
+        assert!(!teclado_aceita_em_avancada(0x1004) && !teclado_aceita_em_avancada(0x1F04) && !serve_em_avancada(TECLA_FN));
         for e in ESPECIAIS.iter().filter(|e| e.codigo != 0) {
             assert!(!serve_em_avancada(e.codigo), "{}", e.nome);
         }
@@ -2235,12 +2262,15 @@ mod testes {
             let texto = erro.expect_err("função de multimídia deveria ser recusada").to_string();
             assert!(texto.contains("Aumentar o volume") && texto.contains("teclas comuns"), "{texto}");
         }
-        assert!(Mpt { teclas: [0x04, 0x0107, 0xE1], pontos: [500, 1500, 2500] }.validar().is_ok());
+        assert!(Mpt { teclas: [0x04, 0x07, 0xE1], pontos: [500, 1500, 2500] }.validar().is_ok());
+        let texto = Mpt { teclas: [0x04, 0x0107, 0], pontos: [500, 1500, 2500] }.validar().unwrap_err().to_string();
+        assert!(texto.contains("\"Ctrl + d\"") && texto.contains("envia só a tecla"), "{texto}");
         assert!(validar_par("o RS", 0x04, 0x07).is_ok());
     }
 
     /// A regra do programa contra o que o teclado de verdade respondeu (`avancadas-medidas.txt`):
-    /// nenhuma função recusada pelo teclado pode passar, e nenhuma aceita pode ser barrada.
+    /// nenhuma função recusada pelo teclado pode passar, e nenhuma tecla comum aceita pode ser
+    /// barrada. As teclas com modificadores o teclado aceita, mas não servem (ele envia só a tecla).
     #[test]
     fn tabela_do_teclado() {
         let mut medidas = 0;
@@ -2253,10 +2283,11 @@ mod testes {
                 "recusado" => false,
                 _ => panic!("resposta desconhecida: {linha}"),
             };
-            assert_eq!(serve_em_avancada(codigo), aceito, "o programa e o teclado discordam: {linha}");
+            assert_eq!(teclado_aceita_em_avancada(codigo), aceito, "o programa e o teclado discordam: {linha}");
+            assert_eq!(serve_em_avancada(codigo), aceito && codigo < 0x100, "regra errada para: {linha}");
             medidas += 1;
         }
-        assert!(medidas > 400, "tabela de medidas incompleta: {medidas} linhas");
+        assert!(medidas > 600, "tabela de medidas incompleta: {medidas} linhas");
     }
 
     /// Toda função dos catálogos tem resposta medida no teclado em cada tipo de uma tecla só:

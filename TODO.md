@@ -27,9 +27,9 @@ O que falta fazer ou conferir. O que já foi decidido como "fica assim" está no
 - Teclas avançadas e pares só aceitam teclas comuns: o teclado recusa multimídia, luzes, perfis e
   macros dentro de DKS, multiponto, dupla função, contínuo, ao soltar, SOCD e RS (firmware
   0.0.2.0). A tabela está no README e as respostas medidas, em
-  `crates/mag82/src/avancadas-medidas.txt`. As combinações com modificador esquerdo (Ctrl + D) o
-  teclado aceita, mas a interface ainda não as oferece nas listas; só a linha de comando, pelo
-  código.
+  `crates/mag82/src/avancadas-medidas.txt`. Uma tecla com modificador junto (Ctrl + D) o teclado
+  aceita gravar, mas ao digitar envia só a tecla; o programa recusa
+  ([issue #28](https://github.com/julianol1berato/Avell-MAG/issues/28)).
 
 - Calibração aberta por outro programa não é detectada: não há comando conhecido para perguntar
   ao teclado se ele está em modo de calibração. A que este programa abre e não fecha (queda de

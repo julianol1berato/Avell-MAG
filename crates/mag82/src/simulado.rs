@@ -212,7 +212,8 @@ impl Simulado {
 }
 
 /// Confere as funções de uma gravação de tecla avançada (`corpo` começa no tipo), como o
-/// teclado faz: só servem teclas comuns (ver [`crate::serve_em_avancada`]).
+/// teclado faz (ver [`crate::teclado_aceita_em_avancada`]): ele recusa as funções especiais e
+/// aceita as teclas com modificadores, mesmo sem enviá-los depois.
 fn funcoes_servem(corpo: &[u8]) -> bool {
     // onde ficam as funções, em cada tipo: DKS, multiponto, dupla função, contínuo, ao soltar e,
     // nos pares (SOCD e RS), depois da posição da outra tecla
@@ -226,7 +227,7 @@ fn funcoes_servem(corpo: &[u8]) -> bool {
     };
     (0..quantas).all(|i| {
         let em = inicio + 2 * i;
-        corpo.get(em..em + 2).map_or(true, |c| crate::serve_em_avancada(u16::from_le_bytes([c[0], c[1]])))
+        corpo.get(em..em + 2).map_or(true, |c| crate::teclado_aceita_em_avancada(u16::from_le_bytes([c[0], c[1]])))
     })
 }
 
