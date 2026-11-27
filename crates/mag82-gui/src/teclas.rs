@@ -450,7 +450,8 @@ impl Teclas {
             .title("Par de teclas (SOCD e RS)")
             .description(
                 "Escolha o que vale quando as duas teclas do par estão pressionadas ao mesmo tempo. \
-                 As quatro primeiras opções são o SOCD; a última é o RS, que compara a profundidade das duas.",
+                 As quatro primeiras opções são o SOCD; a última é o RS, em que vale a tecla mais afundada \
+                 (as duas só saem juntas com ambas exatamente no fundo, o que é difícil de acertar).",
             )
             .build();
         let socd_modo = adw::ComboRow::builder().title("Com as duas pressionadas").build();

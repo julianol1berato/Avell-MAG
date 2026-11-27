@@ -158,7 +158,7 @@ enum Comando {
         /// Como a tecla dispara a macro
         #[arg(long, value_enum, default_value = "toque")]
         modo: ModoDaMacro,
-        /// Quantas vezes a macro roda a cada toque (de 1 a 9999)
+        /// Quantas vezes a macro roda a cada disparo (de 1 a 9999)
         #[arg(long, default_value_t = 1)]
         repetir: u16,
         /// Apaga a macro
@@ -911,9 +911,8 @@ fn executar(args: Args) -> Resultado<()> {
                 }
                 achou = true;
                 if m.valida {
-                    let vezes = if m.modo.conta_repeticoes() { format!(", {} vez(es)", m.repeticoes) } else { String::new() };
                     println!("macro {}: {}", indice + 1, m.em_texto());
-                    println!("    {}{vezes}", m.modo.descricao());
+                    println!("    {}, {} vez(es)", m.modo.descricao(), m.repeticoes);
                 } else {
                     println!("macro {}: vazia", indice + 1);
                 }
@@ -1011,9 +1010,9 @@ enum ModoDaMacro {
     ToquePara,
     /// Um toque roda; tocar de novo para ao fim da rodada
     ToqueTermina,
-    /// Roda enquanto a tecla está pressionada; soltar para na hora
+    /// Roda enquanto a tecla está pressionada, até as repetições; soltar para na hora
     Segurar,
-    /// Roda enquanto a tecla está pressionada; soltar termina a rodada
+    /// Roda enquanto a tecla está pressionada, até as repetições; soltar termina a rodada
     SegurarTermina,
 }
 
