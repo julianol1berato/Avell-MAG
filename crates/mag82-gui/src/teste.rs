@@ -208,6 +208,12 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
         }
     }
     println!("curso ao vivo: tecla afundada vista={:?}", visto.map(|(p, _)| p));
+    let texto = ui.curso.texto();
+    println!(
+        "curso ao vivo, legenda: zonas mortas em mm={} trecho={}",
+        texto.contains("os primeiros 0,20 mm e os últimos 0,20 mm"),
+        texto.contains("antes do ponto de atuação") || texto.contains("atuada") || texto.contains("zona morta do")
+    );
     fotografar(ui, prefixo, "teclas", "teclas-curso").await;
     ui.silencioso(|| ui.curso.ligado.set_active(false));
     ui.selecionar(&[W]);
