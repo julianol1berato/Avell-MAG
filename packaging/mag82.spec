@@ -50,8 +50,6 @@ install -Dm644 udev/70-mag82.rules %{buildroot}%{_udevrulesdir}/70-mag82.rules
 install -Dm644 data/io.github.mag82linux.desktop %{buildroot}%{_datadir}/applications/io.github.mag82linux.desktop
 install -Dm644 data/io.github.mag82linux.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/io.github.mag82linux.svg
 install -Dm644 data/io.github.mag82linux.metainfo.xml %{buildroot}%{_metainfodir}/io.github.mag82linux.metainfo.xml
-%{_mandir}/man1/mag82.1*
-%{_mandir}/man1/mag82-gui.1*
 mkdir -p %{buildroot}%{_mandir}/man1
 target/release/mag82 manual > %{buildroot}%{_mandir}/man1/mag82.1
 install -m644 data/mag82-gui.1 %{buildroot}%{_mandir}/man1/mag82-gui.1
@@ -73,3 +71,5 @@ udevadm trigger --subsystem-match=hidraw >/dev/null 2>&1 || :
 %{_datadir}/applications/io.github.mag82linux.desktop
 %{_datadir}/icons/hicolor/scalable/apps/io.github.mag82linux.svg
 %{_metainfodir}/io.github.mag82linux.metainfo.xml
+%{_mandir}/man1/mag82.1*
+%{_mandir}/man1/mag82-gui.1*
