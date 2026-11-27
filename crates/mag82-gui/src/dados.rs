@@ -96,6 +96,30 @@ impl Dados {
         })
     }
 
+    /// Tudo o que é configuração, num texto só, para saber se duas leituras do teclado são a
+    /// mesma configuração. Ficam de fora as cores que o efeito de luz mostrava no instante da
+    /// leitura, que mudam sozinhas.
+    pub fn configuracao(&self) -> String {
+        let fixas: Vec<_> = self.nomes.keys().filter_map(|p| self.grade.fixa(*p).map(|c| (*p, c))).collect();
+        let lateral = self.lateral.as_ref().map(|l| {
+            let fixos: Vec<_> = (0..l.grade.leds()).filter_map(|i| l.grade.fixa_do_led(i).map(|c| (i, c))).collect();
+            format!("{:?} {:?} {fixos:?}", l.luz, l.paleta)
+        });
+        format!(
+            "{:?} {:?} {:?} {:?} {fixas:?} {:?} {:?} {lateral:?} {:?} {:?} {} {}",
+            self.atuacao,
+            self.atual,
+            self.fn_atual,
+            self.avancada,
+            self.luz,
+            self.paleta,
+            self.macros,
+            self.perfis,
+            self.perfil_atual,
+            self.taxa_atual
+        )
+    }
+
     /// Quantidade de efeitos da área de luz, ou `None` se o teclado não tem essa área.
     pub fn efeitos_de(&self, area: u8) -> Option<u8> {
         match area {
