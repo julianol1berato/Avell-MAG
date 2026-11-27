@@ -147,8 +147,8 @@ enum Comando {
     },
     /// Mostra as macros ou grava uma (ex.: macro 1 --acoes "+lctrl c -lctrl")
     ///
-    /// Nas ações, `+a` pressiona, `-a` solta, `a` faz as duas coisas e `50ms` é a espera antes
-    /// da ação seguinte. Para usar a macro, ligue uma tecla a ela: mag82 remapear f9 macro1
+    /// Nas ações, `+a` pressiona, `-a` solta, `a` faz as duas coisas e `50ms` é uma espera
+    /// naquele ponto. Para usar a macro, ligue uma tecla a ela: mag82 remapear f9 macro1
     Macro {
         /// Número da macro, a partir de 1
         numero: Option<u8>,

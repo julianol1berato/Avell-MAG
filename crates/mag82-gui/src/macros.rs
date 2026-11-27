@@ -15,7 +15,8 @@ use crate::util::{botao, rotulo_longo};
 /// O que um passo faz com a função dele.
 const TIPOS: [&str; 3] = ["Tocar", "Pressionar", "Soltar"];
 
-/// Um passo como aparece na tela. "Tocar" são duas ações do teclado: pressionar e soltar.
+/// Um passo como aparece na tela, com a espera que vem depois dele. "Tocar" são duas ações do
+/// teclado: pressionar e soltar.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Passo {
     tipo: u32,
@@ -29,8 +30,9 @@ fn passos_de(acoes: &[AcaoMacro]) -> Vec<Passo> {
     while i < acoes.len() {
         let a = acoes[i];
         match acoes.get(i + 1) {
-            Some(b) if a.pressiona && !b.pressiona && b.codigo == a.codigo && b.espera == 0 => {
-                passos.push(Passo { tipo: 0, codigo: a.codigo, espera: a.espera });
+            // pressionar e soltar em seguida é um toque; a espera dele é a de depois de soltar
+            Some(b) if a.pressiona && !b.pressiona && b.codigo == a.codigo && a.espera == 0 => {
+                passos.push(Passo { tipo: 0, codigo: a.codigo, espera: b.espera });
                 i += 2;
             }
             _ => {
@@ -45,11 +47,12 @@ fn passos_de(acoes: &[AcaoMacro]) -> Vec<Passo> {
 fn acoes_de(passos: &[Passo]) -> Vec<AcaoMacro> {
     let mut acoes = Vec::new();
     for p in passos {
-        if p.tipo != 2 {
-            acoes.push(AcaoMacro { pressiona: true, espera: p.espera, codigo: p.codigo });
-        }
-        if p.tipo != 1 {
-            acoes.push(AcaoMacro { pressiona: false, espera: if p.tipo == 0 { 0 } else { p.espera }, codigo: p.codigo });
+        match p.tipo {
+            0 => {
+                acoes.push(AcaoMacro { pressiona: true, espera: 0, codigo: p.codigo });
+                acoes.push(AcaoMacro { pressiona: false, espera: p.espera, codigo: p.codigo });
+            }
+            tipo => acoes.push(AcaoMacro { pressiona: tipo == 1, espera: p.espera, codigo: p.codigo }),
         }
     }
     acoes
@@ -109,7 +112,10 @@ impl PainelMacros {
         let adicionar = botao("Adicionar passo", false);
         let g_passos = adw::PreferencesGroup::builder()
             .title("Passos")
-            .description("Na ordem em que acontecem. Cada passo pode esperar um tempo antes de agir.")
+            .description(
+                "Na ordem em que acontecem. Depois de cada passo o teclado pode esperar um tempo; \
+                 em um passo de pressionar, é por esse tempo que a tecla fica segurada.",
+            )
             .header_suffix(&adicionar)
             .build();
 
@@ -170,7 +176,7 @@ impl PainelMacros {
         let espera = gtk::SpinButton::with_range(0.0, f64::from(MACRO_ESPERA_MAX), 10.0);
         espera.set_valign(gtk::Align::Center);
         espera.set_width_chars(5);
-        espera.set_tooltip_text(Some("Espera antes do passo, em milissegundos"));
+        espera.set_tooltip_text(Some("Espera depois do passo, em milissegundos"));
         espera.set_value(f64::from(passo.espera));
         let remover = gtk::Button::builder()
             .icon_name("window-close-symbolic")
@@ -178,11 +184,11 @@ impl PainelMacros {
             .valign(gtk::Align::Center)
             .tooltip_text("Tirar este passo")
             .build();
-        // lê-se como uma frase: "Tocar C depois de 50 ms"
+        // lê-se como uma frase: "Tocar C e esperar 50 ms"
         let frase = gtk::Box::builder().spacing(8).valign(gtk::Align::Center).build();
         frase.append(&tipo);
         frase.append(&funcao);
-        frase.append(&gtk::Label::builder().label("depois de").css_classes(["dim-label"]).build());
+        frase.append(&gtk::Label::builder().label("e esperar").css_classes(["dim-label"]).build());
         frase.append(&espera);
         frase.append(&gtk::Label::builder().label("ms").css_classes(["dim-label"]).build());
         frase.append(&remover);
@@ -356,6 +362,8 @@ mod testes {
     #[test]
     fn passos_viram_acoes_e_voltam() {
         let texto = "+lctrl c -lctrl 50ms v 20ms +a 30ms -a";
+        // depois de soltar o Ctrl espera 50 ms; o V é um toque seguido de 20 ms; o A fica 30 ms segurado
+        assert_eq!(passos_de(&Macro::acoes_de_texto(texto).unwrap()).iter().map(|p| p.espera).collect::<Vec<_>>(), [0, 0, 50, 20, 30, 0]);
         let acoes = Macro::acoes_de_texto(texto).unwrap();
         let passos = passos_de(&acoes);
         assert_eq!(passos.iter().map(|p| p.tipo).collect::<Vec<_>>(), [1, 0, 2, 0, 1, 2]);

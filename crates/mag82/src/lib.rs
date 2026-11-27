@@ -959,7 +959,8 @@ impl ModoMacro {
     }
 }
 
-/// Um passo de uma macro: pressionar ou soltar uma função, depois de esperar `espera` ms.
+/// Um passo de uma macro: pressionar ou soltar uma função e, em seguida, esperar `espera` ms
+/// antes do passo seguinte (conferido no teclado: a espera vem depois da ação, não antes).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AcaoMacro {
     pub pressiona: bool,
@@ -1032,26 +1033,28 @@ impl Macro {
     }
 
     /// A macro escrita como texto: `+a` pressiona, `-a` solta, `a` faz as duas coisas, e `50ms`
-    /// é a espera antes da ação seguinte. Exemplo: `+lctrl c -lctrl`.
+    /// é uma espera naquele ponto da sequência. Exemplo: `+lctrl c -lctrl 200ms enter`.
     pub fn em_texto(&self) -> String {
         let mut partes = Vec::new();
         let mut i = 0;
         while i < self.acoes.len() {
             let a = self.acoes[i];
-            if a.espera > 0 {
-                partes.push(format!("{}ms", a.espera));
-            }
             let nome = nome_tecla(a.codigo);
-            // pressionar e soltar em seguida, sem espera, vira um toque
-            match self.acoes.get(i + 1) {
-                Some(b) if a.pressiona && !b.pressiona && b.codigo == a.codigo && b.espera == 0 => {
+            // pressionar e soltar em seguida, sem espera no meio, vira um toque
+            let ultima = match self.acoes.get(i + 1) {
+                Some(b) if a.pressiona && !b.pressiona && b.codigo == a.codigo && a.espera == 0 => {
                     partes.push(nome);
                     i += 2;
+                    *b
                 }
                 _ => {
                     partes.push(format!("{}{nome}", if a.pressiona { '+' } else { '-' }));
                     i += 1;
+                    a
                 }
+            };
+            if ultima.espera > 0 {
+                partes.push(format!("{}ms", ultima.espera));
             }
         }
         partes.join(" ")
@@ -1059,14 +1062,18 @@ impl Macro {
 
     /// O contrário de [`Macro::em_texto`]; o erro diz qual pedaço não foi entendido.
     pub fn acoes_de_texto(texto: &str) -> Resultado<Vec<AcaoMacro>> {
-        let mut acoes = Vec::new();
-        let mut espera = 0u16;
+        let mut acoes: Vec<AcaoMacro> = Vec::new();
         for pedaco in texto.split_whitespace() {
             if let Some(ms) = pedaco.strip_suffix("ms").and_then(|n| n.parse::<u16>().ok()) {
-                if ms > MACRO_ESPERA_MAX {
+                // a espera fica guardada na ação anterior: o teclado espera depois de agir
+                let Some(anterior) = acoes.last_mut() else {
+                    return Err(Erro::Invalido("a macro não pode começar com uma espera".into()));
+                };
+                let soma = anterior.espera.saturating_add(ms);
+                if soma > MACRO_ESPERA_MAX {
                     return Err(Erro::Invalido(format!("a espera vai até {MACRO_ESPERA_MAX} ms: {pedaco}")));
                 }
-                espera = ms;
+                anterior.espera = soma;
                 continue;
             }
             let (pressiona, solta, nome) = match pedaco.split_at(1) {
@@ -1078,12 +1085,10 @@ impl Macro {
                 return Err(Erro::Invalido(format!("função desconhecida na macro: {nome}")));
             };
             if pressiona {
-                acoes.push(AcaoMacro { pressiona: true, espera, codigo });
-                espera = 0;
+                acoes.push(AcaoMacro { pressiona: true, espera: 0, codigo });
             }
             if solta {
-                acoes.push(AcaoMacro { pressiona: false, espera, codigo });
-                espera = 0;
+                acoes.push(AcaoMacro { pressiona: false, espera: 0, codigo });
             }
         }
         Ok(acoes)
@@ -1868,14 +1873,18 @@ mod testes_macro {
 
     #[test]
     fn texto_vai_e_volta() {
-        for texto in ["+lctrl c -lctrl", "a b c", "+lshift 50ms a 120ms -lshift", "10ms +a 20ms -a"] {
+        for texto in ["+lctrl c -lctrl", "a b c", "+lshift 50ms a 120ms -lshift", "+a 20ms -a 10ms", "h i 800ms o k"] {
             let acoes = Macro::acoes_de_texto(texto).unwrap();
             let m = Macro { valida: true, acoes, ..Default::default() };
             assert!(m.validar().is_ok(), "{texto}");
             assert_eq!(m.em_texto(), texto);
         }
         assert!(Macro::acoes_de_texto("+naoexiste").is_err());
-        assert!(Macro::acoes_de_texto("99999ms a").is_err());
+        assert!(Macro::acoes_de_texto("a 40000ms").is_err());
+        assert!(Macro::acoes_de_texto("50ms a").is_err(), "espera antes de qualquer ação");
+        // a espera fica na ação anterior: é ali que o teclado espera
+        let acoes = Macro::acoes_de_texto("h i 800ms o").unwrap();
+        assert_eq!(acoes.iter().map(|a| a.espera).collect::<Vec<_>>(), [0, 0, 0, 800, 0, 0]);
     }
 
     #[test]
