@@ -26,6 +26,15 @@ jobs:
         run: cargo build --release --locked
       - name: Testes
         run: cargo test --release --locked
+      # O que cada tipo de tecla avançada aceita, contra as respostas medidas no teclado de verdade
+      # (crates/mag82/src/avancadas-medidas.txt). Já roda nos testes acima; fica à parte para a
+      # falha aparecer com nome quando alguém libera uma função que o teclado recusa.
+      - name: Funções aceitas nas teclas avançadas
+        run: |
+          cargo test --release --locked -p mag82 tabela_do_teclado
+          cargo test --release --locked -p mag82 toda_funcao_do_catalogo_foi_medida
+          cargo test --release --locked -p mag82 avancada
+          cargo test --release --locked -p mag82-cli avancadas_recusam_funcoes_especiais
       - name: Interface contra o teclado simulado
         run: scripts/teste-interface.sh telas
       - uses: actions/upload-artifact@v4

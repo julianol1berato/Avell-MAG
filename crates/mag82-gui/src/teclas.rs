@@ -468,7 +468,13 @@ impl Teclas {
         paineis.add_named(&rolavel(&painel_fn, 820), Some(Modo::Fn.nome()));
         paineis.add_named(&rolavel(&g_cor, 820), Some(Modo::Cor.nome()));
         paineis.add_named(&rolavel(&g_socd, 820), Some(Modo::Socd.nome()));
-        let avancadas = crate::avancadas::PainelAvancadas::construir(&fn_opcoes[1..]);
+        // nas funções avançadas o teclado só aceita teclas comuns: as especiais nem entram na lista
+        let teclas_avancadas: Vec<(u16, String)> = teclas_comuns
+            .iter()
+            .filter(|(c, _)| mag82::serve_em_avancada(*c))
+            .map(|(c, n)| (*c, rotulo_longo(n)))
+            .collect();
+        let avancadas = crate::avancadas::PainelAvancadas::construir(&teclas_avancadas);
         paineis.add_named(&rolavel(&avancadas.painel, 820), Some(Modo::Avancada.nome()));
         // o seletor de tipo fica com os outros seletores, abaixo da linha da seleção
         linha_sel.append(&avancadas.tipos);
@@ -1276,6 +1282,19 @@ impl Ui {
                 .collect();
             (antigos, d.atual[&a], d.atual[&b])
         };
+        // o par guarda a função das duas teclas, e o teclado só aceita teclas comuns ali: o aviso
+        // vem antes de desfazer os pares antigos
+        for (pos, codigo) in [(a, cod_a), (b, cod_b)] {
+            if !mag82::serve_em_avancada(codigo) {
+                let tecla = self.d.borrow().as_ref().map(|d| rotulo(&d.nomes[&pos])).unwrap_or_default();
+                self.avisar_erro(&format!(
+                    "A tecla {tecla} está com a função \"{}\", e pares só funcionam entre teclas comuns. \
+                     Mude a função dela no modo Funções e tente de novo.",
+                    descrever_funcao(codigo)
+                ));
+                return;
+            }
+        }
         self.pedir(
             move |t| {
                 for par in &antigos {
