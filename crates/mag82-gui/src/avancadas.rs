@@ -251,7 +251,7 @@ impl PainelAvancadas {
         let g_end = grupo("Ao soltar");
         let end_pressionar = lista_de_funcoes("Ao pressionar, envia", &nomes);
         let end_soltar = lista_de_funcoes("Ao soltar, envia", &nomes);
-        let end_atraso = numero("Atraso", "Em milissegundos", 0.0, f64::from(ATRASO_MAX), 1.0, 0, 0.0);
+        let end_atraso = numero("Atraso", "Espera, em milissegundos, entre soltar a tecla e enviar a função de soltar", 0.0, f64::from(ATRASO_MAX), 1.0, 0, 0.0);
         g_end.add(&end_pressionar);
         g_end.add(&end_soltar);
         g_end.add(&end_atraso);
