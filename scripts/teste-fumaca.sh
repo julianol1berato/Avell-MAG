@@ -35,13 +35,20 @@ if command -v desktop-file-validate >/dev/null && [ -e /usr/share/applications/i
     desktop-file-validate /usr/share/applications/io.github.mag82linux.desktop
 fi
 
-# a janela abre sem teclado, mostra a tela de espera, fotografa as telas e fecha sozinha
+# A janela abre e continua de pé, sem teclado (tela de espera) e com o teclado simulado (todas as
+# telas preenchidas). O pacote não traz o autoteste; quem exercita as telas é teste-interface.sh.
 tmp="$(mktemp -d)"
-GSK_RENDERER=cairo MAG82_TESTE="$tmp/tela" timeout 120 dbus-run-session -- xvfb-run -a mag82-gui > "$tmp/saida.txt" 2>&1 \
-    || { cat "$tmp/saida.txt"; falhou "a interface gráfica não rodou até o fim"; }
-cat "$tmp/saida.txt"
-grep -q "sem teclado" "$tmp/saida.txt" || falhou "a interface não chegou à tela de espera"
-ls "$tmp"/tela-*.png >/dev/null 2>&1 || falhou "a interface não desenhou as telas"
-echo "telas geradas: $(ls "$tmp"/tela-*.png | wc -l)"
+abre() {
+    local codigo=0
+    GSK_RENDERER=cairo GTK_A11Y=none timeout 12 dbus-run-session -- xvfb-run -a env "$@" mag82-gui > "$tmp/saida.txt" 2>&1 || codigo=$?
+    # 124 = o timeout encerrou a janela, que portanto ainda estava aberta
+    [ "$codigo" -eq 124 ] || { cat "$tmp/saida.txt"; falhou "a interface fechou sozinha (código $codigo) com: $*"; }
+}
+abre MAG82_SEM_NADA=1
+echo "ok: a interface abre sem teclado"
+abre MAG82_SIMULADO=1
+echo "ok: a interface abre com o teclado simulado"
+saida="$(MAG82_SIMULADO=1 mag82 dispositivo)"
+grep -q "firmware" <<<"$saida" || falhou "a linha de comando não leu o teclado simulado: $saida"
 [ -z "$(find "$HOME/.local" "$HOME/.config" -user 0 2>/dev/null | head -1)" ] || falhou "o programa deixou arquivos de root na pasta do usuário"
 echo "TESTE DE FUMAÇA OK"

@@ -23,7 +23,8 @@ impl Registro {
             .filter(|p| p.is_absolute())
             .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/state")))
             .unwrap_or_else(std::env::temp_dir);
-        base.join("mag82").join(nome)
+        // o teclado simulado tem a sua pasta: os ensaios não se misturam ao registro de verdade
+        base.join(if crate::simulado::ligado() { "mag82-simulado" } else { "mag82" }).join(nome)
     }
 
     pub fn abrir(caminho: &Path) -> std::io::Result<Self> {

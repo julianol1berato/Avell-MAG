@@ -25,6 +25,7 @@ configurar o teclado no Linux.
 > O programa grava configurações no teclado; use por sua conta.
 
 **Tem um MAG82 e usa Linux?** [Instale](#instalação), use e conte como foi.
+Ainda não tem o teclado? Dá para [conhecer o programa com um simulado](#desenvolvimento).
 Cada relato, de problema ou de "funcionou aqui", ajuda o próximo que chegar.
 
 ## Um passeio pelas telas
@@ -136,9 +137,9 @@ Na prática: Ubuntu 24.04, Debian 13 e Fedora 43 em diante.
 
 - **Recomendado:** tela de 1280 × 800 ou maior. A janela abre em 1020 × 880 e mostra o teclado e os
   ajustes sem precisar rolar.
-- **Mínimo:** a janela encolhe até 540 × 580. Nesse tamanho as abas vão para o rodapé, os nomes dos
+- **Mínimo:** a janela encolhe até 540 × 620. Nesse tamanho as abas vão para o rodapé, os nomes dos
   modos encurtam e a legenda some; os ajustes continuam todos lá, rolando abaixo do teclado.
-- **Abaixo disso** o programa não cabe: em uma tela menor que 540 × 580 parte da janela fica fora dela.
+- **Abaixo disso** o programa não cabe: em uma tela menor que 540 × 620 parte da janela fica fora dela.
 
 ### A partir do código
 
@@ -224,6 +225,7 @@ O [CONTRIBUTING.md](CONTRIBUTING.md) explica o caminho, do fork ao merge.
 
 ```sh
 cargo test                 # não precisa do teclado
+scripts/teste-interface.sh # exercita todas as telas contra o teclado simulado
 packaging/deb.sh           # gera dist/mag82_*.deb
 packaging/rpm.sh           # gera dist/mag82-*.rpm (precisa de rpmbuild)
 packaging/tar.sh           # gera dist/mag82-*.tar.gz (atualização das instalações em ~/.local)
@@ -236,9 +238,15 @@ O código se divide em três partes:
 - `crates/mag82-cli`: a linha de comando
 - `crates/mag82-gui`: a interface, em GTK 4 e libadwaita
 
-Com o teclado conectado, `MAG82_TESTE=/tmp/tela mag82-gui` roda um autoteste da interface.
-Ele **grava no teclado de verdade**, restaura no fim e salva imagens das telas.
-Não rode se você tem SOCD entre A e D ou cor fixa na tecla W: o autoteste desfaz os dois.
+**Não tem o teclado?** Dá para abrir o programa inteiro com um teclado simulado:
+
+```sh
+MAG82_SIMULADO=1 mag82-gui        # a interface, com todas as telas preenchidas
+MAG82_SIMULADO=1 mag82 luz        # a linha de comando também
+```
+
+O teclado simulado responde como o de verdade e guarda o que você gravar enquanto o programa
+estiver aberto. É com ele que os testes rodam, então dá para contribuir sem ter o MAG82.
 
 ## Para a Avell
 

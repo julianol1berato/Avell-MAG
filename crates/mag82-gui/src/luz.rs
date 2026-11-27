@@ -173,6 +173,7 @@ impl Controles {
 }
 
 pub struct PainelLuz {
+    #[cfg_attr(not(feature = "autoteste"), allow(dead_code))] // só o autoteste rola a página
     pub pagina: adw::PreferencesPage,
     pub teclas: Controles,
     pub lateral: Controles,
@@ -186,6 +187,7 @@ pub struct PainelLuz {
 
     // ----- abas: os ajustes das teclas e os da lateral não aparecem ao mesmo tempo -----
     g_abas: adw::PreferencesGroup,
+    #[cfg_attr(not(feature = "autoteste"), allow(dead_code))]
     pub aba_teclas: gtk::ToggleButton,
     pub aba_lateral: gtk::ToggleButton,
     tem_lateral: Cell<bool>,
