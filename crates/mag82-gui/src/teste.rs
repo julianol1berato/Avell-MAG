@@ -84,6 +84,8 @@ async fn fotografar(ui: &Rc<Ui>, prefixo: &str, pagina: &str, nome: &str) {
         if let Err(e) = r.render_texture(&no, Some(&area)).save_to_png(format!("{prefixo}-{nome}.png")) {
             eprintln!("falha ao salvar imagem: {e}");
         }
+    } else {
+        eprintln!("imagem {nome} não foi gerada: a janela não tinha o que desenhar");
     }
 }
 
@@ -190,6 +192,23 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     t.campo(Campo::RtPress).set_value(0.3);
     ui.aplicar_atuacao();
     ocioso(ui).await;
+
+    // ----- curso ao vivo: liga a chave e espera uma leitura com alguma tecla afundada -----
+    ui.marcar(false);
+    ui.curso.ligado.set_active(true);
+    let mut visto = None;
+    for _ in 0..60 {
+        pausa(50).await;
+        // o simulado afunda a tecla W devagar; no teclado de verdade ninguém está apertando
+        if let Some(lido) = ui.curso.mais_afundada().filter(|(_, c)| *c > 1500) {
+            visto = Some(lido);
+            break;
+        }
+    }
+    println!("curso ao vivo: tecla afundada vista={:?}", visto.map(|(p, _)| p));
+    fotografar(ui, prefixo, "teclas", "teclas-curso").await;
+    ui.curso.ligado.set_active(false);
+    ui.selecionar(&[W]);
 
     // ----- predefinição: preenche e marca como editado, sem gravar -----
     ui.usar_predef(0);

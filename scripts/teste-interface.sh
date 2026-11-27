@@ -31,6 +31,7 @@ confere() { grep -q -F -- "$1" "$saida/saida.txt" || falhou "esperava no resulta
 confere "atuação W: rt=true ponto=1500"
 confere "lote: ponto W=1200 A=1200  rt_press W=500 A=300"
 confere "zonas recusadas: topo W=200 A=200"
+confere "curso ao vivo: tecla afundada vista=Some((2, 2))"
 confere "depois de Digitação: rt ao pressionar na tela=0.30 rt=false"
 confere "zonas marcadas=false"
 confere "cor W: Some(Rgb(255, 0, 0))"

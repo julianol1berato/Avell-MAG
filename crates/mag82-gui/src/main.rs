@@ -8,12 +8,14 @@
 //! - `avancadas`: modo Avançada da página Teclas (DKS, multiponto, dupla função, contínuo, ao soltar);
 //! - `macros`: página das macros;
 //! - `sobre`: janela Sobre, com a abertura animada;
+//! - `curso`: curso das teclas ao vivo, no modo Atuação;
 //! - `calibracao`: diálogo de calibração das teclas;
 //! - `teste`: autoteste acionado pela variável `MAG82_TESTE`.
 
 mod atualizacao;
 mod avancadas;
 mod calibracao;
+mod curso;
 mod dados;
 mod dispositivo;
 

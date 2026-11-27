@@ -103,6 +103,7 @@ E a interface só mostra o que o teclado confirmou.
 E mais:
 
 - **Macros**: sequências de teclas que o teclado executa sozinho, ligadas a qualquer tecla.
+- **Curso ao vivo**: veja na tela o quanto a tecla afunda e onde cai o ponto de atuação.
 - **SOCD** para teclas opostas (A/D, W/S): vale a última, uma delas sempre vence, ou nenhuma.
 - **Teclas avançadas**: DKS (até quatro funções por ponto do curso), dupla função (toque e segurar),
   contínuo, multiponto, ao soltar e RS (entre duas teclas, vale a mais pressionada).

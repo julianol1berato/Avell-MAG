@@ -253,7 +253,7 @@ pub struct Teclas {
 }
 
 impl Teclas {
-    pub fn construir(tela: &gdk::Display) -> (Self, gtk::Box, crate::avancadas::PainelAvancadas) {
+    pub fn construir(tela: &gdk::Display) -> (Self, gtk::Box, crate::avancadas::PainelAvancadas, crate::curso::PainelCurso) {
         let css = gtk::CssProvider::new();
         let css_escala = gtk::CssProvider::new();
         for provedor in [&css, &css_escala] {
@@ -356,6 +356,8 @@ impl Teclas {
             })
             .collect();
         let painel_atu = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(12).build();
+        let curso = crate::curso::PainelCurso::construir(tela);
+        painel_atu.append(&curso.grupo);
         painel_atu.append(&linha_predef);
         painel_atu.append(&g_atu);
         let rt = adw::SwitchRow::builder().title("Rapid Trigger").subtitle(SUB_RT).build();
@@ -546,7 +548,7 @@ impl Teclas {
             ap_socd,
             tira_socd,
         };
-        (teclas, pagina, avancadas)
+        (teclas, pagina, avancadas, curso)
     }
 
     pub fn campo(&self, campo: Campo) -> &adw::SpinRow {

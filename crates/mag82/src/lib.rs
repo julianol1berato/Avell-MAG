@@ -814,6 +814,18 @@ impl Teclado {
         Ok(geo)
     }
 
+    /// O quanto cada tecla está afundada neste instante, em milésimos de milímetro (0 = solta).
+    pub fn cursos(&mut self) -> Resultado<BTreeMap<Pos, u16>> {
+        let mut cursos = BTreeMap::new();
+        for linha in 0..LINHAS {
+            let r = self.ler(&[grupo::PERFORMANCE, 3, 1, linha])?;
+            for coluna in 0..COLUNAS {
+                cursos.insert((linha, coluna), u16le(&r, 4 + 2 * coluna as usize));
+            }
+        }
+        Ok(cursos)
+    }
+
     pub fn atuacao(&mut self, pos: Pos) -> Resultado<Atuacao> {
         let r = self.ler(&[grupo::PERFORMANCE, 1, pos.0, pos.1])?;
         let mut corpo = [0u8; 23];
