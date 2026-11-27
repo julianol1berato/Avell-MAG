@@ -26,6 +26,13 @@ O que falta fazer ou conferir. O que já foi decidido como "fica assim" está no
 
 ## Limites conhecidos, sem solução à vista
 
+- Teclas avançadas e pares só aceitam teclas comuns: o teclado recusa multimídia, luzes, perfis e
+  macros dentro de DKS, multiponto, dupla função, contínuo, ao soltar, SOCD e RS (firmware
+  0.0.2.0). A tabela está no README e as respostas medidas, em
+  `crates/mag82/src/avancadas-medidas.txt`. As combinações com modificador esquerdo (Ctrl + D) o
+  teclado aceita, mas a interface ainda não as oferece nas listas; só a linha de comando, pelo
+  código.
+
 - Calibração aberta por outro programa não é detectada: não há comando conhecido para perguntar
   ao teclado se ele está em modo de calibração. A que este programa abre e não fecha (queda de
   energia, `kill -9`) é desfeita na abertura seguinte.

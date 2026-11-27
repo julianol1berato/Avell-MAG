@@ -57,7 +57,8 @@ Mantenedor: Juliano Liberato ([9level.com.br](https://9level.com.br) ·
    ```
 
    Ele **grava no teclado de verdade** e restaura no fim, mas desfaz um SOCD entre A e D e uma cor
-   fixa na tecla W, se existirem. O autoteste não vai nos pacotes.
+   fixa na tecla W, se existirem. Também grava na tecla Insert cada função das listas do modo
+   Avançada, em cada tipo (algumas centenas de gravações), e remove no fim. O autoteste não vai nos pacotes.
 
 5. **Faça commits pequenos**, cada um com uma mudança só e uma mensagem que diga o que mudou e por
    quê.
@@ -98,7 +99,7 @@ Todo pull request e todo envio para `main` dispara o fluxo em
 
 | Etapa | Onde roda | O que confere |
 |---|---|---|
-| **Testes** | Ubuntu 24.04 | Compila, roda os testes e exercita a interface inteira contra o teclado simulado |
+| **Testes** | Ubuntu 24.04 | Compila, roda os testes, confere o que as teclas avançadas aceitam contra as respostas medidas no teclado e exercita a interface inteira contra o teclado simulado |
 | **Pacote .deb** | Ubuntu 24.04 | Gera o `.deb`, instala com `apt` e roda o teste de fumaça como usuário comum |
 | **Pacote .rpm** | Fedora | Gera o `.rpm` (compila e testa de novo), instala com `dnf` e roda o teste de fumaça como usuário comum |
 
@@ -139,6 +140,15 @@ O teclado aceita comandos que mudam tudo de uma vez, sem confirmação. Por isso
    bloqueio.
 3. Toda gravação deve ser conferida lendo de volta, e a interface só mostra o que o teclado
    confirmou.
+4. **Só ofereça o que o teclado aceita.** Nas teclas avançadas (DKS, multiponto, dupla função,
+   contínuo, ao soltar, SOCD e RS) ele recusa tudo o que não é tecla comum. O que ele respondeu a
+   cada função está em
+   [`crates/mag82/src/avancadas-medidas.txt`](crates/mag82/src/avancadas-medidas.txt), e a esteira
+   confere três coisas contra essa tabela: a regra do programa (`serve_em_avancada`), que toda
+   função do catálogo foi medida, e que cada função oferecida nas listas da interface é de fato
+   gravada em cada tipo. Função nova no catálogo ou tipo novo de tecla avançada precisa ser medido
+   no teclado e registrado na tabela; sem isso a esteira reprova. Não edite uma linha da tabela
+   sem medir de novo.
 
 ## Estilo do código
 
