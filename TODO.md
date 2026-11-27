@@ -4,7 +4,17 @@ O que falta fazer ou conferir. O que já foi decidido como "fica assim" está no
 
 ## Recursos
 
+A ordem vem do levantamento em [docs/pesquisa-de-uso.md](docs/pesquisa-de-uso.md): o que usuários
+de teclados magnéticos mais pedem e o programa ainda não tem.
+
+- [ ] Exportar e importar a configuração em arquivo (atuação, remapeamento, atalhos Fn, teclas
+      avançadas, macros, luz e cores fixas). É o pedido mais recorrente; também serve de backup,
+      para copiar de um perfil para outro e para compartilhar.
+- [ ] Predefinições de teclas avançadas: SOCD em A/D e W/S, dupla função no Caps Lock, num clique.
 - [ ] Macros: gravar digitando. Hoje os passos são montados um a um.
+- [ ] Troca automática de perfil conforme o programa ou jogo aberto. Precisa de algo rodando em
+      segundo plano e, no Wayland, não há forma geral de saber qual janela está ativa; se for
+      feito, opcional.
 - [ ] Repositório APT/DNF assinado, para o próprio sistema trazer as versões novas sem o programa
       precisar baixar nada.
 
