@@ -21,6 +21,8 @@ pub fn ligado() -> bool {
 pub struct Simulado {
     respostas: HashMap<Vec<u8>, [u8; TAM]>,
     calibrando: bool,
+    /// Macros: o cabeçalho (ativa, total de ações, repetições, modo) e as ações de cada uma.
+    macros: Vec<([u8; 6], Vec<u8>)>,
     /// Leituras de atuação desde que a calibração abriu: cada tecla "é pressionada" na segunda
     /// vez em que é lida, para a calibração andar sozinha.
     leituras: HashMap<(u8, u8), u8>,
@@ -45,7 +47,8 @@ impl Simulado {
             pacote[..lidos.len().min(TAM)].copy_from_slice(&lidos[..lidos.len().min(TAM)]);
             respostas.insert(bytes(pedido), pacote);
         }
-        Self { respostas, calibrando: false, leituras: HashMap::new() }
+        let macros = vec![([0; 6], Vec::new()); crate::MACROS_MAX as usize];
+        Self { respostas, calibrando: false, macros, leituras: HashMap::new() }
     }
 
     /// O estado compartilhado por todas as conexões simuladas deste processo, como um teclado só.
@@ -131,6 +134,35 @@ impl Simulado {
                 guardado[4..].fill(0);
                 let n = resto.len().min(TAM - 4);
                 guardado[4..4 + n].copy_from_slice(&resto[..n]);
+            }
+
+            // ----- macros -----
+            [grupo::GLOBAL, 14, 0, ..] => {
+                // como no teclado de verdade: 8 macros e 224 ações ao todo
+                eco[3] = self.macros.len() as u8;
+                eco[4..6].copy_from_slice(&224u16.to_le_bytes());
+            }
+            [grupo::MACRO, 2, indice, ref cabecalho @ ..] if cabecalho.len() >= 6 => {
+                let (guardado, acoes) = self.macros.get_mut(indice as usize)?;
+                // a vaga apagada fica toda zerada, como no teclado
+                *guardado = if cabecalho[0] == 0 { [0; 6] } else { [cabecalho[0], cabecalho[1], cabecalho[2], cabecalho[3], cabecalho[4], cabecalho[5]] };
+                acoes.resize(4 * u16::from_le_bytes([cabecalho[1], cabecalho[2]]) as usize, 0);
+            }
+            [grupo::MACRO, 4, indice, pagina, ref dados @ ..] => {
+                let (_, acoes) = self.macros.get_mut(indice as usize)?;
+                let inicio = 60 * pagina as usize;
+                for (i, byte) in dados.iter().enumerate() {
+                    if let Some(vaga) = acoes.get_mut(inicio + i) {
+                        *vaga = *byte;
+                    }
+                }
+            }
+            [grupo::MACRO, 1, indice, ..] => eco[3..9].copy_from_slice(&self.macros.get(indice as usize)?.0),
+            [grupo::MACRO, 3, indice, pagina, ..] => {
+                let (_, acoes) = self.macros.get(indice as usize)?;
+                let inicio = (60 * pagina as usize).min(acoes.len());
+                let fim = (inicio + 60).min(acoes.len());
+                eco[4..4 + fim - inicio].copy_from_slice(&acoes[inicio..fim]);
             }
 
             // ----- leituras -----

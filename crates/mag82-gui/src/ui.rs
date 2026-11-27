@@ -77,6 +77,8 @@ pub struct Ui {
     pub tec: Teclas,
     pub av: crate::avancadas::PainelAvancadas,
     pub luz: PainelLuz,
+    pub macros: crate::macros::PainelMacros,
+    pub pagina_macros: adw::PreferencesPage,
     pub disp: PainelDisp,
     pub cal: Calibracao,
 
@@ -100,6 +102,8 @@ impl Ui {
         let pilha = adw::ViewStack::new();
         pilha.add_titled_with_icon(&pagina_teclas, Some("teclas"), "Teclas", "input-keyboard-symbolic");
         pilha.add_titled_with_icon(&pagina_luz, Some("luz"), "Iluminação", "preferences-color-symbolic");
+        let (macros, pagina_macros) = crate::macros::PainelMacros::construir();
+        pilha.add_titled_with_icon(&pagina_macros, Some("macros"), "Macros", "media-playlist-repeat-symbolic");
         pilha.add_titled_with_icon(&pagina_disp, Some("disp"), "Dispositivo", "computer-symbolic");
 
         let alternador = adw::ViewSwitcher::builder().stack(&pilha).policy(adw::ViewSwitcherPolicy::Wide).build();
@@ -179,6 +183,8 @@ impl Ui {
             tec,
             av,
             luz,
+            macros,
+            pagina_macros,
             disp,
             cal: Calibracao::default(),
             faixa_atualizacao,
@@ -233,6 +239,7 @@ impl Ui {
         crate::teclas::ligar(&ui);
         crate::avancadas::ligar(&ui);
         crate::luz::ligar(&ui);
+        crate::macros::ligar(&ui);
         crate::dispositivo::ligar(&ui);
         crate::atualizacao::ligar(&ui);
         Ui::ligar_atalhos(&ui);
@@ -435,6 +442,7 @@ impl Ui {
             self.preencher_dispositivo(&dados);
             self.preencher_perfis(&dados.perfis, dados.perfil_atual);
         });
+        self.preencher_macros(&dados);
         *self.luz.previa.borrow_mut() = Some(dados.grade.clone());
         *self.d.borrow_mut() = Some(dados);
         self.montar_teclado();

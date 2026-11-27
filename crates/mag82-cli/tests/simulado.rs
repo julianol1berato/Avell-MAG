@@ -84,6 +84,33 @@ fn recusa_avancadas_invalidas() {
 }
 
 #[test]
+fn macros() {
+    assert!(ok(&["macro"]).contains("nenhuma macro gravada (o teclado guarda 8)"));
+    let texto = ok(&["macro", "3", "--acoes", "+lctrl c -lctrl 50ms v", "--repetir", "2"]);
+    assert!(texto.contains("macro 3: +lctrl c -lctrl 50ms v"), "{texto}");
+    assert!(texto.contains("2 vez(es)"), "{texto}");
+    let texto = ok(&["macro", "1", "--acoes", "a b", "--modo", "segurar"]);
+    assert!(texto.contains("Roda enquanto a tecla está pressionada; soltar para na hora"), "{texto}");
+    assert!(ok(&["remapear", "f9", "macro3"]).contains("f9         -> macro3"));
+    // as macros dividem 224 ações: uma de 240 não cabe
+    let longa = vec!["a"; 120].join(" ");
+    let (certo, texto) = mag82(&["macro", "1", "--acoes", &longa]);
+    assert!(!certo && texto.contains("cabem 224"), "{texto}");
+    let (certo, texto) = mag82(&["macro", "2", "--apagar"]);
+    assert!(certo, "apagar uma vaga vazia não é erro:\n{texto}");
+    for args in [
+        &["macro", "1", "--acoes", "+a"][..],
+        &["macro", "1", "--acoes", "macro2"],
+        &["macro", "9", "--acoes", "a"],
+        &["macro", "1", "--acoes", "a", "--repetir", "0"],
+        &["macro", "1", "--acoes", "naoexiste"],
+    ] {
+        let (certo, texto) = mag82(args);
+        assert!(!certo, "mag82 {args:?} deveria ser recusado:\n{texto}");
+    }
+}
+
+#[test]
 fn recusa_o_que_nao_pode() {
     let (certo, texto) = mag82(&["atuacao", "w", "--ponto", "9"]);
     assert!(!certo, "ponto de 9 mm deveria ser recusado:\n{texto}");
