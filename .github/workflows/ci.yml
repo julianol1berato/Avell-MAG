@@ -128,11 +128,16 @@ jobs:
     permissions:
       contents: write
     steps:
+      # só os pacotes: as capturas de tela do teste também são artefatos, mas não vão na versão
       - uses: actions/download-artifact@v4
         with:
+          pattern: "{deb,rpm}"
           path: pacotes
           merge-multiple: true
       - name: Criar a versão com os pacotes
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" pacotes/* --repo "${GITHUB_REPOSITORY}" --title "${GITHUB_REF_NAME}" --generate-notes
+        run: |
+          ls -la pacotes
+          gh release create "${GITHUB_REF_NAME}" pacotes/*.deb pacotes/*.rpm pacotes/*.tar.gz \
+            --repo "${GITHUB_REPOSITORY}" --title "${GITHUB_REF_NAME}" --generate-notes
