@@ -62,7 +62,7 @@ enum Comando {
     Dks {
         /// Tecla física que recebe o DKS
         tecla: Option<String>,
-        /// Função e momentos, até quatro vezes (ex.: --acao lshift:1-3 --acao w:2,4)
+        /// Função (só tecla comum) e momentos, até quatro vezes (ex.: --acao lshift:1-3 --acao w:2,4)
         #[arg(long = "acao", value_name = "FUNÇÃO:MOMENTOS")]
         acoes: Vec<String>,
         /// Ponto de início, em mm (de 0.1 a 3.3)
@@ -79,10 +79,10 @@ enum Comando {
     Mt {
         /// Tecla física
         tecla: Option<String>,
-        /// Função enviada no toque curto
+        /// Função enviada no toque curto (só tecla comum)
         #[arg(long)]
         toque: Option<String>,
-        /// Função enviada ao segurar
+        /// Função enviada ao segurar (só tecla comum)
         #[arg(long)]
         segura: Option<String>,
         /// Tempo, em ms, que separa o toque do segurar (de 10 a 1000)
@@ -96,7 +96,7 @@ enum Comando {
     Tgl {
         /// Tecla física
         tecla: Option<String>,
-        /// Função que fica pressionada
+        /// Função que fica pressionada (só tecla comum)
         #[arg(long)]
         funcao: Option<String>,
         /// Tempo, em ms, que separa o toque do segurar (de 10 a 1000)
@@ -110,7 +110,7 @@ enum Comando {
     Mpt {
         /// Tecla física
         tecla: Option<String>,
-        /// Função e profundidade em mm, até três vezes, da mais rasa à mais funda
+        /// Função (só tecla comum) e profundidade em mm, até três vezes, da mais rasa à mais funda
         #[arg(long = "acao", value_name = "FUNÇÃO:MM")]
         acoes: Vec<String>,
         /// Remove o multiponto da tecla
@@ -121,10 +121,10 @@ enum Comando {
     End {
         /// Tecla física
         tecla: Option<String>,
-        /// Função enviada ao pressionar
+        /// Função enviada ao pressionar (só tecla comum)
         #[arg(long)]
         pressionar: Option<String>,
-        /// Função enviada ao soltar
+        /// Função enviada ao soltar (só tecla comum)
         #[arg(long)]
         soltar: Option<String>,
         /// Atraso em ms (de 0 a 50)
