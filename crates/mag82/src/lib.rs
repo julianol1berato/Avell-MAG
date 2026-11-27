@@ -554,12 +554,29 @@ impl Teclado {
                 acoes.push(AcaoMacro::do_teclado(u32::from_le_bytes([bloco[0], bloco[1], bloco[2], bloco[3]])));
             }
         }
-        Ok(Macro { valida, modo, repeticoes, acoes })
+        // a vaga vazia vem toda zerada do teclado; aqui ela é sempre a mesma macro vazia
+        Ok(Macro { valida, modo, repeticoes: repeticoes.max(1), acoes })
     }
 
     /// Grava a macro `indice` e só retorna quando a leitura devolve a mesma macro.
     pub fn definir_macro(&mut self, indice: u8, m: &Macro) -> Resultado<()> {
         m.validar()?;
+        // as macros dividem o mesmo espaço: a nova precisa caber junto com as outras
+        let (total, capacidade) = self.espaco_de_macros()?;
+        if indice >= total {
+            return Err(Erro::Invalido(format!("este teclado tem as macros de 1 a {total}")));
+        }
+        if capacidade > 0 {
+            let mut usadas = m.acoes.len();
+            for outra in (0..total).filter(|i| *i != indice) {
+                usadas += u16le(&self.ler(&[grupo::MACRO, 1, outra])?, 4) as usize;
+            }
+            if usadas > capacidade as usize {
+                return Err(Erro::Invalido(format!(
+                    "as macros somam {usadas} ações e no teclado cabem {capacidade}; encurte esta ou apague outra"
+                )));
+            }
+        }
         let (total, rep) = ((m.acoes.len() as u16).to_le_bytes(), m.repeticoes.to_le_bytes());
         self.comando(&[grupo::MACRO, 2, indice, m.valida as u8, total[0], total[1], rep[0], rep[1], m.modo.byte()])?;
         for (pagina, acoes) in m.acoes.chunks(MACRO_ACOES_POR_PAGINA).enumerate() {
@@ -864,9 +881,9 @@ pub enum Avancada {
 
 /// Código da função "macro 1"; as seguintes vêm em ordem (ver [`codigo_da_macro`]).
 pub const MACRO_BASE: u16 = 0xF500;
-/// Quantas macros a biblioteca endereça; o teclado diz quantas tem em
-/// [`Teclado::espaco_de_macros`].
-pub const MACROS_MAX: u8 = 16;
+/// Quantas macros o MAG82 guarda (conferido no teclado; ele também informa em
+/// [`Teclado::espaco_de_macros`], junto com o total de ações que cabem: 224).
+pub const MACROS_MAX: u8 = 8;
 /// Ações por pacote na leitura e na gravação de uma macro.
 pub const MACRO_ACOES_POR_PAGINA: usize = 15;
 /// Limite de ações de uma macro nesta biblioteca (o número de página é um byte).
@@ -1801,14 +1818,6 @@ pub const ESPECIAIS: &[Especial] = &[
     esp(MACRO_BASE + 5, "Macro 6", "M6", Familia::Macro),
     esp(MACRO_BASE + 6, "Macro 7", "M7", Familia::Macro),
     esp(MACRO_BASE + 7, "Macro 8", "M8", Familia::Macro),
-    esp(MACRO_BASE + 8, "Macro 9", "M9", Familia::Macro),
-    esp(MACRO_BASE + 9, "Macro 10", "M10", Familia::Macro),
-    esp(MACRO_BASE + 10, "Macro 11", "M11", Familia::Macro),
-    esp(MACRO_BASE + 11, "Macro 12", "M12", Familia::Macro),
-    esp(MACRO_BASE + 12, "Macro 13", "M13", Familia::Macro),
-    esp(MACRO_BASE + 13, "Macro 14", "M14", Familia::Macro),
-    esp(MACRO_BASE + 14, "Macro 15", "M15", Familia::Macro),
-    esp(MACRO_BASE + 15, "Macro 16", "M16", Familia::Macro),
     esp(0xFF00, "Alternar entre janelas (Alt + Tab)", "Alt+Tab", Familia::Teclado),
     esp(0xF200, "Restaurar o teclado de fábrica (segurando a tecla)", "Reset", Familia::Reservada),
     esp(0xF201, "Mudar para o layout Windows (segurando a tecla)", "Win", Familia::Reservada),
@@ -1888,8 +1897,8 @@ mod testes_macro {
         assert!(Macro { repeticoes: 0, ..com("a") }.validar().is_err());
         assert!(Macro { valida: false, ..com("a") }.validar().is_err());
         assert_eq!(codigo_tecla("macro1"), Some(MACRO_BASE));
-        assert_eq!(codigo_tecla("macro17"), None);
-        assert_eq!(nome_tecla(MACRO_BASE + 15), "macro16");
+        assert_eq!(codigo_tecla("macro9"), None);
+        assert_eq!(nome_tecla(MACRO_BASE + 7), "macro8");
         assert_eq!(ModoMacro::do_byte(4), ModoMacro::SegurarParaJa);
         assert_eq!(ModoMacro::SegurarTermina.byte(), 5);
     }
