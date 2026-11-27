@@ -1182,9 +1182,9 @@ impl Ui {
         self.pedir(
             move |t| {
                 let novo = t.definir_funcao(pos, codigo)?;
-                // se a tecla faz parte de um par SOCD, o par foi regravado com a função nova
+                // se a tecla faz parte de um par (SOCD ou RS), o par foi regravado com a função nova
                 let mut pares = vec![(pos, t.avancada(pos)?)];
-                if let Avancada::Socd { par, .. } = pares[0].1 {
+                if let Avancada::Socd { par, .. } | Avancada::Rs { par, .. } = pares[0].1 {
                     pares.push((par, t.avancada(par)?));
                 }
                 Ok((novo, pares))

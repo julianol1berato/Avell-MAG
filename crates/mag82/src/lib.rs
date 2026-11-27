@@ -802,14 +802,21 @@ impl Teclado {
         if camada >= CAMADAS {
             return Err(Erro::Invalido(format!("camada inexistente: use de 0 a {}", CAMADAS - 1)));
         }
-        // um par SOCD guarda a função das duas teclas e só aceita teclas comuns: a função nova
-        // precisa servir no par, e isso é conferido antes de gravar qualquer coisa
-        if camada == 0 && !serve_em_avancada(codigo) && matches!(self.avancada(pos)?, Avancada::Socd { .. }) {
-            return Err(Erro::Invalido(format!(
-                "essa tecla faz parte de um par SOCD, que só funciona entre teclas comuns. Desfaça o par antes de \
-                 pôr nela a função \"{}\"",
-                nome_da_funcao(codigo)
-            )));
+        // um par (SOCD ou RS) guarda a função das duas teclas e só aceita teclas comuns: a função
+        // nova precisa servir no par, e isso é conferido antes de gravar qualquer coisa
+        if camada == 0 && !serve_em_avancada(codigo) {
+            let tipo = match self.avancada(pos)? {
+                Avancada::Socd { .. } => Some("SOCD"),
+                Avancada::Rs { .. } => Some("RS"),
+                _ => None,
+            };
+            if let Some(tipo) = tipo {
+                return Err(Erro::Invalido(format!(
+                    "essa tecla faz parte de um par {tipo}, que só funciona entre teclas comuns. Desfaça o par antes \
+                     de pôr nela a função \"{}\"",
+                    nome_da_funcao(codigo)
+                )));
+            }
         }
         let c = codigo.to_le_bytes();
         self.comando(&[grupo::LAYOUT, 4, camada, pos.0, pos.1, c[0], c[1]])?;
@@ -822,11 +829,20 @@ impl Teclado {
             std::thread::sleep(Duration::from_millis(10));
             lido = self.funcao_na_camada(camada, pos)?;
         }
-        // um par SOCD guarda a função das duas teclas: acompanha a mudança na camada base
+        // um par guarda a função das duas teclas, e é a guardada que o teclado envia (conferido
+        // digitando, no RS: com o par desatualizado sai a função antiga): o par acompanha a mudança
+        // na camada base
         if camada == 0 {
-            if let Avancada::Socd { par, regra, .. } = self.avancada(pos)? {
-                let do_par = self.funcao_na_camada(0, par)?;
-                self.definir_socd(pos, par, lido, do_par, ModoSocd::da_regra(regra))?;
+            match self.avancada(pos)? {
+                Avancada::Socd { par, regra, .. } => {
+                    let do_par = self.funcao_na_camada(0, par)?;
+                    self.definir_socd(pos, par, lido, do_par, ModoSocd::da_regra(regra))?;
+                }
+                Avancada::Rs { par, atraso, .. } => {
+                    let do_par = self.funcao_na_camada(0, par)?;
+                    self.definir_rs(pos, par, lido, do_par, atraso)?;
+                }
+                _ => {}
             }
         }
         Ok(lido)
