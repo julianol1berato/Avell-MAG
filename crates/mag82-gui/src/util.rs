@@ -85,6 +85,36 @@ pub fn descrever_funcao(codigo: u16) -> String {
     }
 }
 
+/// Ícone de uma função especial, para desenhar na tecla: os do tema de ícones do sistema, na
+/// versão simbólica (um traço só, na cor do texto). `None` para as funções sem ícone óbvio
+/// (luzes, perfis, macros) e quando o tema instalado não tem o ícone; aí vale o texto de
+/// [`rotulo_funcao`].
+pub fn icone_da_funcao(codigo: u16) -> Option<&'static str> {
+    let nome = match codigo {
+        0x206F => "display-brightness-symbolic",
+        0x2070 => "night-light-symbolic",
+        0x20B5 => "media-skip-forward-symbolic",
+        0x20B6 => "media-skip-backward-symbolic",
+        0x20B7 => "media-playback-stop-symbolic",
+        0x20CD => "media-playback-start-symbolic",
+        0x20E2 => "audio-volume-muted-symbolic",
+        0x20E9 => "audio-volume-high-symbolic",
+        0x20EA => "audio-volume-low-symbolic",
+        0x2183 => "multimedia-player-symbolic",
+        0x218A => "mail-unread-symbolic",
+        0x2192 => "accessories-calculator-symbolic",
+        0x2194 => "system-file-manager-symbolic",
+        0x2221 => "system-search-symbolic",
+        0x2223 => "web-browser-symbolic",
+        0x2224 => "go-previous-symbolic",
+        0xF209 => "changes-prevent-symbolic",
+        0xFF00 => "focus-windows-symbolic",
+        _ => return None,
+    };
+    let tela = gtk::gdk::Display::default()?;
+    gtk::IconTheme::for_display(&tela).has_icon(nome).then_some(nome)
+}
+
 /// O mesmo, numa forma que cabe na legenda de uma tecla.
 pub fn rotulo_funcao(codigo: u16) -> String {
     if let Some(e) = mag82::especial(codigo) {

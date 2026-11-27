@@ -255,6 +255,33 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     ui.aplicar_funcao(false);
     ocioso(ui).await;
     println!("função W: {}", mag82::nome_tecla(ui.d.borrow().as_ref().unwrap().atual[&W]));
+    // a tecla remapeada fica marcada em todos os modos, não só em Funções
+    println!("W remapeada, dica da tecla: {:?}", t.botoes.borrow()[&W].tooltip_text().map(|d| d.contains("Remapeada para A")));
+    // função com desenho (calculadora no Insert, volume no End): o desenho aparece na tecla
+    for (pos, codigo) in [((1, 14), 0x2192u16), ((2, 14), 0x20E9)] {
+        ui.selecionar(&[pos]);
+        let posicao = t.funcoes.iter().position(|(c, _)| *c == codigo).unwrap();
+        t.funcao.set_selected(posicao as u32);
+        ui.aplicar_funcao(false);
+        ocioso(ui).await;
+    }
+    println!(
+        "desenhos das funções: calculadora={:?} volume={:?} tecla comum={:?}",
+        crate::util::icone_da_funcao(0x2192),
+        crate::util::icone_da_funcao(0x20E9),
+        crate::util::icone_da_funcao(0x04)
+    );
+    fotografar(ui, prefixo, "teclas", "teclas-remapeada-em-funcoes").await;
+    ui.mudar_modo(Modo::Atuacao);
+    ui.selecionar(&[]);
+    fotografar(ui, prefixo, "teclas", "teclas-remapeada-em-atuacao").await;
+    ui.mudar_modo(Modo::Remapear);
+    for pos in [(1, 14), (2, 14)] {
+        ui.selecionar(&[pos]);
+        ui.aplicar_funcao(true);
+        ocioso(ui).await;
+    }
+    ui.selecionar(&[W]);
     ui.aplicar_funcao(true);
     ocioso(ui).await;
     println!("função W restaurada: {}", mag82::nome_tecla(ui.d.borrow().as_ref().unwrap().atual[&W]));
