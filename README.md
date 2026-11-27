@@ -136,11 +136,9 @@ Na prática: Ubuntu 24.04, Debian 13 e Fedora 43 em diante.
 
 ### Tamanho da tela
 
+- **Mínimo:** a janela precisa de 800 × 600 pixels. Abaixo disso o programa não cabe.
 - **Recomendado:** tela de 1280 × 800 ou maior. A janela abre em 1020 × 880 e mostra o teclado e os
-  ajustes sem precisar rolar.
-- **Mínimo:** a janela encolhe até 540 × 620. Nesse tamanho as abas vão para o rodapé, os nomes dos
-  modos encurtam e a legenda some; os ajustes continuam todos lá, rolando abaixo do teclado.
-- **Abaixo disso** o programa não cabe: em uma tela menor que 540 × 620 parte da janela fica fora dela.
+  ajustes sem precisar rolar; no tamanho mínimo os ajustes rolam abaixo do teclado.
 
 ### A partir do código
 

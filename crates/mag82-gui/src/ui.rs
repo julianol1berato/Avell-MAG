@@ -46,8 +46,8 @@ pub const SITE_AUTOR: &str = "https://9level.com.br";
 pub const AUTOR_E_CIDADE: &str = "Juliano Liberato · Joinville - SC";
 
 /// Menor janela em que tudo continua utilizável.
-pub const LARGURA_MIN: i32 = 540;
-pub const ALTURA_MIN: i32 = 620;
+pub const LARGURA_MIN: i32 = 800;
+pub const ALTURA_MIN: i32 = 600;
 
 pub struct Ui {
     pub fila: Fila,
