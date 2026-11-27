@@ -116,8 +116,10 @@ execução.
 ## Revisão e merge
 
 - O pull request só entra com a **esteira verde** e a revisão do mantenedor.
-- O merge é feito pelo mantenedor, como **squash**: os commits do pull request viram um só em
-  `main`. Por isso o título do pull request precisa descrever bem a mudança.
+- O merge é feito pelo mantenedor, como **merge comum**: os commits do pull request entram em
+  `main` como estão, junto com um commit de merge que leva o título do pull request. Por isso cada
+  commit precisa ter uma mensagem que se explique sozinha, e o título do pull request precisa
+  descrever bem a mudança.
 - Pedidos de ajuste são respondidos com novos commits no mesmo ramo; não precisa abrir outro
   pull request.
 
