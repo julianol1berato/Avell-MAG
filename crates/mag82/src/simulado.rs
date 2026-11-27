@@ -47,7 +47,7 @@ impl Simulado {
             pacote[..lidos.len().min(TAM)].copy_from_slice(&lidos[..lidos.len().min(TAM)]);
             respostas.insert(bytes(pedido), pacote);
         }
-        let macros = vec![([0, 0, 0, 1, 0, 0], Vec::new()); crate::MACROS_MAX as usize];
+        let macros = vec![([0; 6], Vec::new()); crate::MACROS_MAX as usize];
         Self { respostas, calibrando: false, macros, leituras: HashMap::new() }
     }
 
@@ -138,13 +138,14 @@ impl Simulado {
 
             // ----- macros -----
             [grupo::GLOBAL, 14, 0, ..] => {
-                // 16 macros; o total de ações que cabem é uma suposição do simulado
+                // como no teclado de verdade: 8 macros e 224 ações ao todo
                 eco[3] = self.macros.len() as u8;
-                eco[4..6].copy_from_slice(&1024u16.to_le_bytes());
+                eco[4..6].copy_from_slice(&224u16.to_le_bytes());
             }
             [grupo::MACRO, 2, indice, ref cabecalho @ ..] if cabecalho.len() >= 6 => {
                 let (guardado, acoes) = self.macros.get_mut(indice as usize)?;
-                guardado.copy_from_slice(&cabecalho[..6]);
+                // a vaga apagada fica toda zerada, como no teclado
+                *guardado = if cabecalho[0] == 0 { [0; 6] } else { [cabecalho[0], cabecalho[1], cabecalho[2], cabecalho[3], cabecalho[4], cabecalho[5]] };
                 acoes.resize(4 * u16::from_le_bytes([cabecalho[1], cabecalho[2]]) as usize, 0);
             }
             [grupo::MACRO, 4, indice, pagina, ref dados @ ..] => {
