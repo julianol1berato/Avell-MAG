@@ -94,7 +94,7 @@ async fn redimensionar(ui: &Rc<Ui>, prefixo: &str) {
     use crate::ui::{ALTURA_MIN, LARGURA_MIN};
     ui.avisar("Redimensionando"); // tira da frente o aviso de erro do passo anterior
     pausa(3500).await;
-    let tamanhos = [(LARGURA_MIN, ALTURA_MIN), (LARGURA_MIN, 900), (1024, 700), (1280, 640), (1500, 1000)];
+    let tamanhos = [(LARGURA_MIN, ALTURA_MIN), (LARGURA_MIN, 900), (1024, 800), (1280, 800), (1500, 1000)];
     for (largura, altura) in tamanhos {
         ui.janela.set_default_size(largura, altura);
         pausa(500).await;
