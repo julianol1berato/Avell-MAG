@@ -255,6 +255,13 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     ui.aplicar_funcao(false);
     ocioso(ui).await;
     println!("função W: {}", mag82::nome_tecla(ui.d.borrow().as_ref().unwrap().atual[&W]));
+    // a tecla remapeada fica marcada em todos os modos, não só em Funções
+    println!("W remapeada, dica da tecla: {:?}", t.botoes.borrow()[&W].tooltip_text().map(|d| d.contains("Remapeada para A")));
+    ui.mudar_modo(Modo::Atuacao);
+    ui.selecionar(&[]);
+    fotografar(ui, prefixo, "teclas", "teclas-remapeada-em-atuacao").await;
+    ui.mudar_modo(Modo::Remapear);
+    ui.selecionar(&[W]);
     ui.aplicar_funcao(true);
     ocioso(ui).await;
     println!("função W restaurada: {}", mag82::nome_tecla(ui.d.borrow().as_ref().unwrap().atual[&W]));

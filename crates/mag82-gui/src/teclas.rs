@@ -277,6 +277,7 @@ impl Teclas {
             ("▁", "legenda-rt", "Rapid Trigger ligado"),
             ("▔", "legenda-socd", "faz parte de um par"),
             ("▔", "legenda-dks", "função avançada"),
+            ("▏", "legenda-remap", "função trocada"),
             ("■", "", "fundo colorido = cor fixa"),
         ] {
             let m = gtk::Label::new(Some(marca));
@@ -767,6 +768,19 @@ impl Ui {
             }
             if let Some(novo) = &remapeada {
                 dica.push(format!("Remapeada para {novo}"));
+                // a marca da tecla remapeada aparece em todos os modos, não só em Funções: uma
+                // barra na lateral, somada às outras marcas que a tecla tiver (a regra por tecla
+                // passa por cima das regras de classe, por isso leva todas)
+                let mut sombras = vec!["inset 4px 0 0 @purple_3"];
+                if a.rapid_trigger() {
+                    sombras.push("inset 0 -3px 0 @accent_bg_color");
+                }
+                if par.is_some() {
+                    sombras.push("inset 0 3px 0 @warning_bg_color");
+                } else if crate::avancadas::sigla(&d.avancada[pos]).is_some() {
+                    sombras.push("inset 0 3px 0 @success_bg_color");
+                }
+                regras.push_str(&format!("#{} {{ box-shadow: {}; }}\n", b.widget_name(), sombras.join(", ")));
             }
             if d.fn_atual[pos] != mag82::FUNCAO_PADRAO {
                 dica.push(format!("Com Fn: {}", descrever_funcao(d.fn_atual[pos])));
