@@ -127,7 +127,7 @@ enum Comando {
         /// Função enviada ao soltar (só tecla comum)
         #[arg(long)]
         soltar: Option<String>,
-        /// Atraso em ms (de 0 a 50)
+        /// Espera em ms entre soltar a tecla e enviar a função de soltar (de 0 a 50)
         #[arg(long, default_value_t = 0)]
         atraso: u16,
         /// Remove o acionamento ao soltar da tecla
