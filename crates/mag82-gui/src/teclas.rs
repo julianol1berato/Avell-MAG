@@ -794,6 +794,12 @@ impl Ui {
             b.set_child(Some(&caixa));
 
             let mut dica = vec![format!("Atuação: {} mm", mm(a.mm(Campo::Ponto)))];
+            match (a.mm(Campo::ZonaTopo), a.mm(Campo::ZonaFundo)) {
+                (0, 0) => {}
+                (inicio, 0) => dica.push(format!("Zona morta: os primeiros {} mm", mm(inicio))),
+                (0, fim) => dica.push(format!("Zona morta: os últimos {} mm", mm(fim))),
+                (inicio, fim) => dica.push(format!("Zonas mortas: os primeiros {} mm e os últimos {} mm", mm(inicio), mm(fim))),
+            }
             if a.rapid_trigger() {
                 b.add_css_class("rt");
                 dica.push("Rapid Trigger ligado".into());
