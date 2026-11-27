@@ -529,7 +529,10 @@ impl Teclado {
     }
 
     /// Liga o RS entre duas teclas: vale a que estiver mais pressionada, e as duas quando ambas
-    /// chegam ao fundo. `cod_a` e `cod_b` são as funções atuais das teclas; `atraso` em ms.
+    /// chegam ao fundo. `cod_a` e `cod_b` são as funções atuais das teclas; `atraso` em ms. A
+    /// troca acontece no instante em que uma tecla passa a outra em profundidade, e o atraso não
+    /// muda isso: com 0, 200 e 500 ms a troca veio de 0 a 2 ms depois do cruzamento (firmware
+    /// 0.0.2.0). O teclado guarda o valor, mas nenhum efeito dele foi medido.
     pub fn definir_rs(&mut self, a: Pos, b: Pos, cod_a: u16, cod_b: u16, atraso: u16) -> Resultado<()> {
         if a == b {
             return Err(Erro::Invalido("o RS precisa de duas teclas diferentes".into()));
