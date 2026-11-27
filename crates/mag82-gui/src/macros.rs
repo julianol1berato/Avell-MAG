@@ -71,6 +71,10 @@ pub struct PainelMacros {
     opcoes: Vec<(u16, String)>,
     nomes: gtk::StringList,
     qual: adw::ComboRow,
+    /// Quais teclas disparam a macro escolhida.
+    usada_por: adw::ActionRow,
+    /// Linha mostrada no lugar dos passos enquanto não há nenhum.
+    vazia: adw::ActionRow,
     g_passos: adw::PreferencesGroup,
     linhas: RefCell<Vec<LinhaPasso>>,
     adicionar: gtk::Button,
@@ -103,11 +107,13 @@ impl PainelMacros {
             .title("Macros")
             .description(
                 "Uma macro é uma sequência de teclas que o teclado executa sozinho. Monte os passos aqui e \
-                 depois ligue uma tecla à macro em Teclas → Remapear ou Atalhos Fn.",
+                 depois ligue uma tecla à macro em Teclas → Funções.",
             )
             .build();
         let qual = adw::ComboRow::builder().title("Macro").build();
+        let usada_por = adw::ActionRow::builder().title("Disparada por").css_classes(["property"]).build();
         g_qual.add(&qual);
+        g_qual.add(&usada_por);
 
         let adicionar = botao("Adicionar passo", false);
         let g_passos = adw::PreferencesGroup::builder()
@@ -118,6 +124,12 @@ impl PainelMacros {
             )
             .header_suffix(&adicionar)
             .build();
+        // sem passos, a lista diz o que fazer em vez de ficar em branco
+        let vazia = adw::ActionRow::builder()
+            .title("Nenhum passo ainda")
+            .subtitle("Use Adicionar passo para começar a montar a macro")
+            .build();
+        g_passos.add(&vazia);
 
         let g_modo = adw::PreferencesGroup::builder().title("Disparo").build();
         let descricoes: Vec<&str> = ModoMacro::TODOS.iter().map(|m| m.descricao()).collect();
@@ -149,6 +161,8 @@ impl PainelMacros {
             opcoes,
             nomes,
             qual,
+            usada_por,
+            vazia,
             g_passos,
             linhas: RefCell::new(Vec::new()),
             adicionar,
@@ -165,6 +179,8 @@ impl PainelMacros {
         let p = &self_.macros;
         let tipo = gtk::DropDown::from_strings(&TIPOS);
         tipo.set_valign(gtk::Align::Center);
+        // larguras fixas: as colunas ficam alinhadas de uma linha para a outra
+        tipo.set_size_request(132, -1);
         tipo.set_selected(passo.tipo);
         let funcao = gtk::DropDown::builder()
             .model(&p.nomes)
@@ -172,6 +188,7 @@ impl PainelMacros {
             .enable_search(true)
             .valign(gtk::Align::Center)
             .build();
+        funcao.set_size_request(190, -1);
         funcao.set_selected(p.opcoes.iter().position(|(c, _)| *c == passo.codigo).unwrap_or(0) as u32);
         let espera = gtk::SpinButton::with_range(0.0, f64::from(MACRO_ESPERA_MAX), 10.0);
         espera.set_valign(gtk::Align::Center);
@@ -210,15 +227,18 @@ impl PainelMacros {
     }
 
     fn numerar(&self) {
-        for (i, l) in self.linhas.borrow().iter().enumerate() {
+        let linhas = self.linhas.borrow();
+        for (i, l) in linhas.iter().enumerate() {
             l.linha.set_title(&format!("{}", i + 1));
         }
+        self.vazia.set_visible(linhas.is_empty());
     }
 
     fn esvaziar(&self) {
         for l in self.linhas.borrow_mut().drain(..) {
             self.g_passos.remove(&l.linha);
         }
+        self.vazia.set_visible(true);
     }
 
     fn passos(&self) -> Vec<Passo> {
@@ -249,6 +269,13 @@ pub fn ligar(ui: &Rc<Ui>) {
     let p = &ui.macros;
     let ui2 = ui.clone();
     p.qual.connect_selected_notify(move |_| ui2.mostrar_macro());
+    // ao chegar à página, confere de novo quais teclas disparam a macro (podem ter mudado em Teclas)
+    let ui2 = ui.clone();
+    ui.pilha.connect_visible_child_name_notify(move |pilha| {
+        if pilha.visible_child_name().as_deref() == Some("macros") {
+            ui2.mostrar_macro();
+        }
+    });
     let ui2 = ui.clone();
     p.adicionar.connect_clicked(move |_| {
         let primeira = ui2.macros.opcoes.first().map_or(0, |(c, _)| *c);
@@ -299,6 +326,23 @@ impl Ui {
         let p = &self.macros;
         let indice = p.qual.selected();
         let Some(m) = d.macros.as_ref().and_then(|l| l.get(indice as usize)) else { return };
+        // quais teclas disparam esta macro, sozinhas ou com Fn
+        let codigo = mag82::codigo_da_macro(indice as u8);
+        let mut teclas: Vec<String> = d
+            .nomes
+            .iter()
+            .flat_map(|(pos, nome)| {
+                let sozinha = (d.atual.get(pos) == Some(&codigo)).then(|| rotulo_longo(nome));
+                let com_fn = (d.fn_atual.get(pos) == Some(&codigo)).then(|| format!("Fn + {}", rotulo_longo(nome)));
+                [sozinha, com_fn].into_iter().flatten()
+            })
+            .collect();
+        teclas.sort();
+        p.usada_por.set_subtitle(&if teclas.is_empty() {
+            "Nenhuma tecla ainda: ligue uma em Teclas → Funções".to_string()
+        } else {
+            teclas.join(", ")
+        });
         if p.mostrando.replace(Some(indice)) == Some(indice) {
             return;
         }

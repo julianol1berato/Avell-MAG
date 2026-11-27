@@ -18,6 +18,11 @@ install -Dm644 udev/70-mag82.rules "$P/usr/lib/udev/rules.d/70-mag82.rules"
 install -Dm644 data/io.github.mag82linux.desktop "$P/usr/share/applications/io.github.mag82linux.desktop"
 install -Dm644 data/io.github.mag82linux.svg "$P/usr/share/icons/hicolor/scalable/apps/io.github.mag82linux.svg"
 install -Dm644 data/io.github.mag82linux.metainfo.xml "$P/usr/share/metainfo/io.github.mag82linux.metainfo.xml"
+# páginas de manual: a da linha de comando sai da própria ajuda do programa
+install -d -m755 "$P/usr/share/man" "$P/usr/share/man/man1"
+target/release/mag82 manual | gzip -9n > "$P/usr/share/man/man1/mag82.1.gz"
+gzip -9nc data/mag82-gui.1 > "$P/usr/share/man/man1/mag82-gui.1.gz"
+chmod 644 "$P"/usr/share/man/man1/*.gz
 install -Dm644 LICENSE "$P/usr/share/doc/mag82/copyright"
 install -Dm644 README.md "$P/usr/share/doc/mag82/README.md"
 printf 'mag82 (%s) unstable; urgency=medium\n\n  * Versão %s; as notas ficam na página de versões do projeto.\n\n -- Juliano Liberato <juliano@9level.com.br>  %s\n' \
