@@ -10,8 +10,6 @@ O que falta fazer ou conferir. O que já foi decidido como "fica assim" está no
 
 ## Falta conferir
 
-- [ ] A instalação da versão nova por `.deb` (via `pkexec apt-get`) nunca foi exercitada. Por
-      `.rpm` e em `~/.local` foi, com versões publicadas.
 - [ ] Seleção por arrasto e atalhos (Ctrl+A, Esc, F5) não têm teste automático: o autoteste chama
       as ações direto, sem simular mouse nem teclado.
 
