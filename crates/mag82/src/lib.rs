@@ -428,13 +428,17 @@ impl Teclado {
         if a == b {
             return Err(Erro::Invalido("o SOCD precisa de duas teclas diferentes".into()));
         }
+        validar_par("o SOCD", cod_a, cod_b)?;
         self.desfazer_par(a, Some(b))?;
         self.desfazer_par(b, Some(a))?;
         let (regra_a, regra_b) = modo.regras();
         let (ca, cb) = (cod_a.to_le_bytes(), cod_b.to_le_bytes());
         // um pacote para cada tecla, cada um apontando para a outra; atraso (2 bytes) sempre 0
-        self.comando(&[grupo::TECLA_AVANCADA, 2, a.0, a.1, 6, b.0, b.1, ca[0], ca[1], cb[0], cb[1], 0, 0, regra_a])?;
-        self.comando(&[grupo::TECLA_AVANCADA, 2, b.0, b.1, 6, a.0, a.1, cb[0], cb[1], ca[0], ca[1], 0, 0, regra_b])?;
+        self.gravar_par(
+            "o SOCD",
+            &[grupo::TECLA_AVANCADA, 2, a.0, a.1, 6, b.0, b.1, ca[0], ca[1], cb[0], cb[1], 0, 0, regra_a],
+            &[grupo::TECLA_AVANCADA, 2, b.0, b.1, 6, a.0, a.1, cb[0], cb[1], ca[0], ca[1], 0, 0, regra_b],
+        )?;
         let de_a = Avancada::Socd { par: b, codigos: (cod_a, cod_b), regra: regra_a };
         let de_b = Avancada::Socd { par: a, codigos: (cod_b, cod_a), regra: regra_b };
         self.esperar("o SOCD", |t| Ok(t.avancada(a)? == de_a && t.avancada(b)? == de_b))
@@ -451,14 +455,49 @@ impl Teclado {
         Ok(())
     }
 
+    /// Envia uma gravação de tecla avançada e confere se o teclado aceitou. Quando ele recusa,
+    /// responde na hora com [`RECUSADA`] no lugar do tipo e não muda nada: sem olhar a resposta,
+    /// a recusa só apareceria depois, como uma gravação que nunca se confirma.
+    fn enviar_avancada(&mut self, dados: &[u8], nome: &str) -> Resultado<()> {
+        // a resposta repete a posição da tecla, mesmo na recusa
+        let resposta = self.trocar(dados, 4)?;
+        if resposta[4] == RECUSADA {
+            return Err(Erro::Invalido(format!(
+                "o teclado recusou {nome}. Funções avançadas só aceitam teclas comuns (letras, números, F1 a F12, \
+                 setas, Ctrl, Shift, Alt…)"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Grava as duas metades de um par (SOCD ou RS), uma em cada tecla. Se o teclado aceitar a
+    /// primeira e recusar a segunda, a primeira é removida: metade de um par não fica gravada.
+    fn gravar_par(&mut self, nome: &str, de_a: &[u8], de_b: &[u8]) -> Resultado<()> {
+        self.enviar_avancada(de_a, nome)?;
+        if let Err(erro) = self.enviar_avancada(de_b, nome) {
+            self.remover_avancada((de_a[2], de_a[3]))?;
+            return Err(erro);
+        }
+        Ok(())
+    }
+
     /// Grava uma função avançada de uma tecla só (`corpo` vem depois do tipo) e espera a leitura
-    /// devolver `esperada`.
+    /// devolver `esperada`. Se a tecla fazia parte de um par SOCD ou RS, o par é desfeito, mas só
+    /// depois de o teclado aceitar a função nova: uma gravação recusada não muda nada.
     fn gravar_avancada(&mut self, pos: Pos, tipo: u8, corpo: &[u8], esperada: Avancada, nome: &str) -> Resultado<()> {
-        self.desfazer_par(pos, None)?;
+        let par = match self.avancada(pos)? {
+            Avancada::Socd { par, .. } | Avancada::Rs { par, .. } => Some(par),
+            _ => None,
+        };
         let mut dados = vec![grupo::TECLA_AVANCADA, 2, pos.0, pos.1, tipo];
         dados.extend_from_slice(corpo);
-        self.comando(&dados)?;
-        self.esperar(nome, |t| Ok(t.avancada(pos)? == esperada))
+        self.enviar_avancada(&dados, nome)?;
+        self.esperar(nome, |t| Ok(t.avancada(pos)? == esperada))?;
+        // uma tecla só não sustenta o par, e a outra ficaria apontando para cá
+        match par {
+            Some(par) => self.remover_avancada(par),
+            None => Ok(()),
+        }
     }
 
     /// Multiponto: até três funções, cada uma acionada quando a tecla passa de uma profundidade.
@@ -498,11 +537,15 @@ impl Teclado {
         if atraso > ATRASO_MAX {
             return Err(Erro::Invalido(format!("o atraso vai de 0 a {ATRASO_MAX} ms")));
         }
+        validar_par("o RS", cod_a, cod_b)?;
         self.desfazer_par(a, Some(b))?;
         self.desfazer_par(b, Some(a))?;
         let (ca, cb, at) = (cod_a.to_le_bytes(), cod_b.to_le_bytes(), atraso.to_le_bytes());
-        self.comando(&[grupo::TECLA_AVANCADA, 2, a.0, a.1, 7, b.0, b.1, ca[0], ca[1], cb[0], cb[1], at[0], at[1]])?;
-        self.comando(&[grupo::TECLA_AVANCADA, 2, b.0, b.1, 7, a.0, a.1, cb[0], cb[1], ca[0], ca[1], at[0], at[1]])?;
+        self.gravar_par(
+            "o RS",
+            &[grupo::TECLA_AVANCADA, 2, a.0, a.1, 7, b.0, b.1, ca[0], ca[1], cb[0], cb[1], at[0], at[1]],
+            &[grupo::TECLA_AVANCADA, 2, b.0, b.1, 7, a.0, a.1, cb[0], cb[1], ca[0], ca[1], at[0], at[1]],
+        )?;
         let de_a = Avancada::Rs { par: b, codigos: (cod_a, cod_b), atraso };
         let de_b = Avancada::Rs { par: a, codigos: (cod_b, cod_a), atraso };
         self.esperar("o RS", |t| Ok(t.avancada(a)? == de_a && t.avancada(b)? == de_b))
@@ -512,22 +555,16 @@ impl Teclado {
     /// curso (ver [`Dks`]). Se a tecla fazia parte de um par SOCD ou RS, o par é desfeito.
     pub fn definir_dks(&mut self, pos: Pos, dks: &Dks) -> Resultado<()> {
         dks.validar()?;
-        self.desfazer_par(pos, None)?;
-        let mut dados = vec![grupo::TECLA_AVANCADA, 2, pos.0, pos.1, 1];
-        for tecla in dks.teclas {
-            dados.extend_from_slice(&tecla.to_le_bytes());
-        }
-        dados.extend_from_slice(&dks.gatilhos);
-        dados.extend_from_slice(&dks.inicio.to_le_bytes());
-        dados.extend_from_slice(&dks.fundo.to_le_bytes());
-        self.comando(&dados)?;
-        let esperado = Avancada::Dks(*dks);
-        self.esperar("o DKS", |t| Ok(t.avancada(pos)? == esperado))
+        let mut corpo: Vec<u8> = dks.teclas.iter().flat_map(|v| v.to_le_bytes()).collect();
+        corpo.extend_from_slice(&dks.gatilhos);
+        corpo.extend_from_slice(&dks.inicio.to_le_bytes());
+        corpo.extend_from_slice(&dks.fundo.to_le_bytes());
+        self.gravar_avancada(pos, 1, &corpo, Avancada::Dks(*dks), "o DKS")
     }
 
     /// Remove a função avançada (SOCD etc.) de uma tecla.
     pub fn remover_avancada(&mut self, pos: Pos) -> Resultado<()> {
-        self.comando(&[grupo::TECLA_AVANCADA, 2, pos.0, pos.1, 0])?;
+        self.enviar_avancada(&[grupo::TECLA_AVANCADA, 2, pos.0, pos.1, 0], "a remoção da função avançada")?;
         self.esperar("a remoção da função avançada", |t| Ok(t.avancada(pos)? == Avancada::Nenhuma))
     }
 
@@ -761,6 +798,15 @@ impl Teclado {
     pub fn definir_funcao_na_camada(&mut self, camada: u8, pos: Pos, codigo: u16) -> Resultado<u16> {
         if camada >= CAMADAS {
             return Err(Erro::Invalido(format!("camada inexistente: use de 0 a {}", CAMADAS - 1)));
+        }
+        // um par SOCD guarda a função das duas teclas e só aceita teclas comuns: a função nova
+        // precisa servir no par, e isso é conferido antes de gravar qualquer coisa
+        if camada == 0 && !serve_em_avancada(codigo) && matches!(self.avancada(pos)?, Avancada::Socd { .. }) {
+            return Err(Erro::Invalido(format!(
+                "essa tecla faz parte de um par SOCD, que só funciona entre teclas comuns. Desfaça o par antes de \
+                 pôr nela a função \"{}\"",
+                nome_da_funcao(codigo)
+            )));
         }
         let c = codigo.to_le_bytes();
         self.comando(&[grupo::LAYOUT, 4, camada, pos.0, pos.1, c[0], c[1]])?;
@@ -1105,6 +1151,60 @@ impl Macro {
     }
 }
 
+/// O que o teclado põe no lugar do tipo, na resposta, quando recusa a gravação de uma tecla
+/// avançada. A gravação recusada não muda o que a tecla tinha.
+const RECUSADA: u8 = 0xFF;
+
+/// Verdadeiro se a função pode ser usada dentro de uma função avançada: nas vagas do DKS, do
+/// multiponto, da dupla função, do contínuo e do ao soltar, e como função de uma tecla de um par
+/// SOCD ou RS.
+///
+/// O teclado só aceita ali **teclas comuns**, sozinhas ou com modificadores do lado esquerdo
+/// (Ctrl, Shift, Alt, Super): na prática, os códigos abaixo de `0x1000`. O resto ele recusa, em
+/// qualquer tipo e em qualquer vaga: multimídia (`0x2…`), luzes, perfis, macros e as outras
+/// funções do próprio teclado (`0xF…`), e as combinações com modificador do lado direito
+/// (`0x10…` a `0x1F…`).
+///
+/// Medido no teclado (firmware 0.0.2.0) gravando na tecla Insert: as 88 teclas de [`funcoes`]
+/// (todas menos a Fn) no multiponto e uma amostra delas nos outros tipos, todas aceitas; todas
+/// as funções de [`ESPECIAIS`] fora as reservadas, nos cinco tipos, todas recusadas; combinações
+/// com modificadores `0x01` a `0x0F` aceitas e de `0x10` a `0x1F` recusadas; e, nos pares, uma
+/// função de cada família. As funções reservadas não foram enviadas. As respostas estão em
+/// `avancadas-medidas.txt`, e os testes conferem esta função contra elas.
+pub fn serve_em_avancada(codigo: u16) -> bool {
+    codigo < 0x1000
+}
+
+/// Nome de uma função para mensagens: o do catálogo de especiais ou o da tecla.
+fn nome_da_funcao(codigo: u16) -> String {
+    especial(codigo).map_or_else(|| nome_tecla(codigo), |e| e.nome.to_string())
+}
+
+/// Recusa, antes de gravar, as funções que o teclado não aceita numa função avançada (ver
+/// [`serve_em_avancada`]). `onde` completa a frase: "no multiponto", "na dupla função".
+fn validar_funcoes(onde: &str, codigos: &[u16]) -> Resultado<()> {
+    match codigos.iter().find(|c| !serve_em_avancada(**c)) {
+        Some(codigo) => Err(Erro::Invalido(format!(
+            "\"{}\" não pode ser usada {onde}: funções avançadas só aceitam teclas comuns (letras, números, \
+             F1 a F12, setas, Ctrl, Shift, Alt…)",
+            nome_da_funcao(*codigo)
+        ))),
+        None => Ok(()),
+    }
+}
+
+/// O mesmo para um par (SOCD ou RS), que guarda a função que cada uma das duas teclas envia.
+fn validar_par(nome: &str, cod_a: u16, cod_b: u16) -> Resultado<()> {
+    match [cod_a, cod_b].into_iter().find(|c| !serve_em_avancada(*c)) {
+        Some(codigo) => Err(Erro::Invalido(format!(
+            "{nome} só funciona entre teclas comuns, e uma das duas está com a função \"{}\". Volte essa tecla \
+             para uma tecla comum antes de formar o par",
+            nome_da_funcao(codigo)
+        ))),
+        None => Ok(()),
+    }
+}
+
 /// Maior atraso, em milissegundos, aceito nos pares (RS) e no acionamento ao soltar.
 pub const ATRASO_MAX: u16 = 50;
 /// Faixa do tempo, em milissegundos, que separa toque de segurar (MT e TGL).
@@ -1112,7 +1212,8 @@ pub const TEMPO_MIN: u16 = 10;
 pub const TEMPO_MAX: u16 = 1000;
 
 /// Multiponto (MPT): a função `teclas[i]` (0 = vaga livre) é acionada quando a tecla passa de
-/// `pontos[i]`, em milésimos de milímetro. As profundidades usadas precisam crescer.
+/// `pontos[i]`, em milésimos de milímetro. As profundidades usadas precisam crescer. Como em
+/// todos os tipos avançados, as funções precisam ser teclas comuns (ver [`serve_em_avancada`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Mpt {
     pub teclas: [u16; 3],
@@ -1136,7 +1237,7 @@ impl Mpt {
         if !(self.pontos[0] < self.pontos[1] && self.pontos[1] < self.pontos[2]) {
             return Err(Erro::Invalido("as profundidades do multiponto precisam crescer da primeira à terceira".into()));
         }
-        Ok(())
+        validar_funcoes("no multiponto", &self.teclas)
     }
 }
 
@@ -1154,6 +1255,7 @@ impl Mt {
         if self.toque == 0 || self.segura == 0 {
             return Err(Erro::Invalido("a dupla função precisa das duas funções: a do toque e a de segurar".into()));
         }
+        validar_funcoes("na dupla função", &[self.toque, self.segura])?;
         validar_tempo(self.tempo)
     }
 }
@@ -1171,6 +1273,7 @@ impl Tgl {
         if self.tecla == 0 {
             return Err(Erro::Invalido("o acionamento contínuo precisa de uma função".into()));
         }
+        validar_funcoes("no acionamento contínuo", &[self.tecla])?;
         validar_tempo(self.tempo)
     }
 }
@@ -1192,7 +1295,7 @@ impl End {
         if self.atraso > ATRASO_MAX {
             return Err(Erro::Invalido(format!("o atraso vai de 0 a {ATRASO_MAX} ms")));
         }
-        Ok(())
+        validar_funcoes("no acionamento ao soltar", &[self.ao_pressionar, self.ao_soltar])
     }
 }
 
@@ -1311,7 +1414,7 @@ impl Dks {
                 ));
             }
         }
-        Ok(())
+        validar_funcoes("no DKS", &self.teclas)
     }
 }
 
@@ -2097,6 +2200,84 @@ mod testes {
         assert_eq!((faixa.leds(), faixa.fixa_do_led(29), faixa.fixa_do_led(0)), (30, Some(Rgb(1, 2, 3)), None));
         assert_eq!(faixa.cor_do_led(30), Rgb(0, 0, 0));
         assert_eq!(g.fixa((1, 2)), None);
+    }
+
+    #[test]
+    fn avancadas_so_aceitam_teclas_comuns() {
+        // teclas comuns, sozinhas ou com modificadores esquerdos
+        for (codigo, _) in funcoes().into_iter().filter(|(c, _)| *c != TECLA_FN) {
+            assert!(serve_em_avancada(codigo), "{codigo:#06x}");
+        }
+        assert!(serve_em_avancada(0x0107) && serve_em_avancada(0x0F04));
+        // modificador direito e todas as funções especiais
+        assert!(!serve_em_avancada(0x1004) && !serve_em_avancada(0x1F04) && !serve_em_avancada(TECLA_FN));
+        for e in ESPECIAIS.iter().filter(|e| e.codigo != 0) {
+            assert!(!serve_em_avancada(e.codigo), "{}", e.nome);
+        }
+        // cada tipo recusa antes de gravar, dizendo qual função não serve
+        let volume = 0x20E9;
+        let erros = [
+            Mpt { teclas: [0x04, volume, 0], pontos: [500, 1500, 2500] }.validar(),
+            Mt { toque: volume, segura: 0xE0, tempo: 200 }.validar(),
+            Tgl { tecla: volume, tempo: 200 }.validar(),
+            End { ao_pressionar: 0x04, ao_soltar: volume, atraso: 0 }.validar(),
+            Dks { teclas: [volume, 0, 0, 0], gatilhos: [1, 0, 0, 0], ..Default::default() }.validar(),
+            validar_par("o SOCD", 0x04, volume),
+        ];
+        for erro in erros {
+            let texto = erro.expect_err("função de multimídia deveria ser recusada").to_string();
+            assert!(texto.contains("Aumentar o volume") && texto.contains("teclas comuns"), "{texto}");
+        }
+        assert!(Mpt { teclas: [0x04, 0x0107, 0xE1], pontos: [500, 1500, 2500] }.validar().is_ok());
+        assert!(validar_par("o RS", 0x04, 0x07).is_ok());
+    }
+
+    /// A regra do programa contra o que o teclado de verdade respondeu (`avancadas-medidas.txt`):
+    /// nenhuma função recusada pelo teclado pode passar, e nenhuma aceita pode ser barrada.
+    #[test]
+    fn tabela_do_teclado() {
+        let mut medidas = 0;
+        for linha in include_str!("avancadas-medidas.txt").lines().filter(|l| !l.starts_with('#') && !l.trim().is_empty()) {
+            let [tipo, _vaga, codigo, resposta] = linha.split(' ').collect::<Vec<_>>()[..] else { panic!("linha fora do formato: {linha}") };
+            let codigo = u16::from_str_radix(codigo, 16).unwrap_or_else(|_| panic!("código inválido: {linha}"));
+            assert!(["dks", "mpt", "mt", "tgl", "end", "socd", "rs"].contains(&tipo), "tipo desconhecido: {linha}");
+            let aceito = match resposta {
+                "aceito" => true,
+                "recusado" => false,
+                _ => panic!("resposta desconhecida: {linha}"),
+            };
+            assert_eq!(serve_em_avancada(codigo), aceito, "o programa e o teclado discordam: {linha}");
+            medidas += 1;
+        }
+        assert!(medidas > 400, "tabela de medidas incompleta: {medidas} linhas");
+    }
+
+    /// Toda função dos catálogos tem resposta medida no teclado em cada tipo de uma tecla só:
+    /// função nova (ou tipo novo) sem medida não passa. As reservadas nunca são enviadas e por
+    /// isso ficam sempre de fora das funções avançadas.
+    #[test]
+    fn toda_funcao_do_catalogo_foi_medida() {
+        let medidas: Vec<(&str, u16)> = include_str!("avancadas-medidas.txt")
+            .lines()
+            .filter(|l| !l.starts_with('#') && !l.trim().is_empty())
+            .map(|l| {
+                let partes: Vec<&str> = l.split(' ').collect();
+                (partes[0], u16::from_str_radix(partes[2], 16).unwrap())
+            })
+            .collect();
+        let medida = |tipo: &str, codigo: u16| medidas.iter().any(|m| *m == (tipo, codigo));
+        for e in ESPECIAIS.iter().filter(|e| e.codigo != 0) {
+            if e.familia == Familia::Reservada {
+                assert!(!serve_em_avancada(e.codigo), "função reservada liberada em avançada: {}", e.nome);
+                continue;
+            }
+            for tipo in ["dks", "mpt", "mt", "tgl", "end"] {
+                assert!(medida(tipo, e.codigo), "\"{}\" ({:#06x}) não foi medida no teclado em {tipo}", e.nome, e.codigo);
+            }
+        }
+        for (codigo, nome) in funcoes().into_iter().filter(|(c, _)| *c != TECLA_FN) {
+            assert!(medida("mpt", codigo), "a tecla {nome} ({codigo:#06x}) não foi medida no teclado");
+        }
     }
 
     #[test]
