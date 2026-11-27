@@ -22,6 +22,8 @@ const FOLGA: f64 = 4.0;
 /// Fração da altura da página que o desenho do teclado pode ocupar.
 const ALTURA_TECLADO: f64 = 0.42;
 /// Abaixo desta largura de página, a linha de modos e seleção se divide em duas.
+/// Posição da opção RS na lista do modo Pares, depois dos quatro modos do SOCD.
+const OPCAO_RS: u32 = 4;
 const LARGURA_ESTREITA: i32 = 960;
 /// Abaixo desta largura os títulos dos modos encurtam para o seletor caber.
 const LARGURA_TITULOS: i32 = 700;
@@ -93,12 +95,14 @@ pub enum Modo {
     /// Atalhos com a tecla Fn: o que cada tecla faz enquanto Fn está pressionado.
     Fn,
     Cor,
+    /// Pares de teclas: SOCD e RS.
     Socd,
-    Dks,
+    /// Funções avançadas de uma tecla só: DKS, multiponto, dupla função, contínuo e ao soltar.
+    Avancada,
 }
 
 impl Modo {
-    pub const TODOS: [Modo; 6] = [Modo::Atuacao, Modo::Remapear, Modo::Fn, Modo::Cor, Modo::Socd, Modo::Dks];
+    pub const TODOS: [Modo; 6] = [Modo::Atuacao, Modo::Remapear, Modo::Fn, Modo::Cor, Modo::Socd, Modo::Avancada];
 
     pub fn nome(self) -> &'static str {
         match self {
@@ -107,7 +111,7 @@ impl Modo {
             Modo::Fn => "fn",
             Modo::Cor => "cor",
             Modo::Socd => "socd",
-            Modo::Dks => "dks",
+            Modo::Avancada => "avancada",
         }
     }
 
@@ -117,8 +121,8 @@ impl Modo {
             Modo::Remapear => "Remapear",
             Modo::Fn => "Atalhos Fn",
             Modo::Cor => "Cor fixa",
-            Modo::Socd => "SOCD",
-            Modo::Dks => "DKS",
+            Modo::Socd => "Pares",
+            Modo::Avancada => "Avançada",
         }
     }
 
@@ -129,8 +133,8 @@ impl Modo {
             Modo::Remapear => "Remap.",
             Modo::Fn => "Fn",
             Modo::Cor => "Cor",
-            Modo::Socd => "SOCD",
-            Modo::Dks => "DKS",
+            Modo::Socd => "Pares",
+            Modo::Avancada => "Avanç.",
         }
     }
 
@@ -138,7 +142,7 @@ impl Modo {
     pub fn limite(self) -> Option<usize> {
         match self {
             Modo::Atuacao | Modo::Cor => None,
-            Modo::Remapear | Modo::Fn | Modo::Dks => Some(1),
+            Modo::Remapear | Modo::Fn | Modo::Avancada => Some(1),
             Modo::Socd => Some(2),
         }
     }
@@ -149,8 +153,8 @@ impl Modo {
             Modo::Remapear => "Clique na tecla que quer remapear",
             Modo::Fn => "Clique numa tecla para ver ou mudar o que ela faz com Fn",
             Modo::Cor => "Clique ou arraste sobre as teclas que quer colorir",
-            Modo::Socd => "Clique nas duas teclas opostas, como A e D",
-            Modo::Dks => "Clique na tecla que vai ter o DKS",
+            Modo::Socd => "Clique nas duas teclas do par, como A e D",
+            Modo::Avancada => "Clique na tecla que vai ter a função avançada",
         }
     }
 }
@@ -225,7 +229,7 @@ pub struct Teclas {
 }
 
 impl Teclas {
-    pub fn construir(tela: &gdk::Display) -> (Self, gtk::Box, crate::dks::PainelDks) {
+    pub fn construir(tela: &gdk::Display) -> (Self, gtk::Box, crate::avancadas::PainelAvancadas) {
         let css = gtk::CssProvider::new();
         let css_escala = gtk::CssProvider::new();
         for provedor in [&css, &css_escala] {
@@ -247,8 +251,8 @@ impl Teclas {
         let legenda = gtk::Box::builder().spacing(6).halign(gtk::Align::Center).css_classes(["legenda"]).build();
         for (marca, classe, texto) in [
             ("▁", "legenda-rt", "Rapid Trigger ligado"),
-            ("▔", "legenda-socd", "faz parte de um par SOCD"),
-            ("▔", "legenda-dks", "tem DKS"),
+            ("▔", "legenda-socd", "faz parte de um par"),
+            ("▔", "legenda-dks", "função avançada"),
             ("■", "", "fundo colorido = cor fixa"),
         ] {
             let m = gtk::Label::new(Some(marca));
@@ -409,8 +413,11 @@ impl Teclas {
 
         // ----- modo SOCD -----
         let g_socd = adw::PreferencesGroup::builder()
-            .title("SOCD (teclas opostas)")
-            .description("Escolha o que vale quando as duas teclas do par estão pressionadas ao mesmo tempo")
+            .title("Par de teclas (SOCD e RS)")
+            .description(
+                "Escolha o que vale quando as duas teclas do par estão pressionadas ao mesmo tempo. \
+                 As quatro primeiras opções são o SOCD; a última é o RS, que compara a profundidade das duas.",
+            )
             .build();
         let socd_modo = adw::ComboRow::builder().title("Com as duas pressionadas").build();
         let tira_socd = botao("Remover", false);
@@ -424,8 +431,8 @@ impl Teclas {
         paineis.add_named(&rolavel(&painel_fn, 820), Some(Modo::Fn.nome()));
         paineis.add_named(&rolavel(&g_cor, 820), Some(Modo::Cor.nome()));
         paineis.add_named(&rolavel(&g_socd, 820), Some(Modo::Socd.nome()));
-        let dks = crate::dks::PainelDks::construir(&fn_opcoes[1..]);
-        paineis.add_named(&rolavel(&dks.painel, 820), Some(Modo::Dks.nome()));
+        let avancadas = crate::avancadas::PainelAvancadas::construir(&fn_opcoes[1..]);
+        paineis.add_named(&rolavel(&avancadas.painel, 820), Some(Modo::Avancada.nome()));
 
         let topo = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -500,7 +507,7 @@ impl Teclas {
             ap_socd,
             tira_socd,
         };
-        (teclas, pagina, dks)
+        (teclas, pagina, avancadas)
     }
 
     pub fn campo(&self, campo: Campo) -> &adw::SpinRow {
@@ -681,9 +688,10 @@ impl Ui {
         for (pos, b) in t.botoes.borrow().iter() {
             let a = &d.atuacao[pos];
             let remapeada = (d.atual[pos] != d.fabrica[pos]).then(|| rotulo_funcao(d.atual[pos]));
-            let par = match d.avancada[pos] {
-                Avancada::Socd { par, .. } => Some(d.nomes.get(&par).map(|n| rotulo(n)).unwrap_or_default()),
-                _ => None,
+            let (par, tipo_do_par) = match d.avancada[pos] {
+                Avancada::Socd { par, .. } => (Some(d.nomes.get(&par).map(|n| rotulo(n)).unwrap_or_default()), "SOCD"),
+                Avancada::Rs { par, .. } => (Some(d.nomes.get(&par).map(|n| rotulo(n)).unwrap_or_default()), "RS"),
+                _ => (None, ""),
             };
             let sub = match modo {
                 Modo::Atuacao => Some(mm(a.mm(Campo::Ponto))),
@@ -691,7 +699,7 @@ impl Ui {
                 Modo::Fn => (d.fn_atual[pos] != mag82::FUNCAO_PADRAO).then(|| rotulo_funcao(d.fn_atual[pos])),
                 Modo::Cor => None,
                 Modo::Socd => par.as_ref().map(|outra| format!("⇄ {outra}")),
-                Modo::Dks => matches!(d.avancada[pos], Avancada::Dks(_)).then(|| "DKS".to_string()),
+                Modo::Avancada => crate::avancadas::sigla(&d.avancada[pos]).map(str::to_string),
             };
             let caixa = gtk::Box::builder().orientation(gtk::Orientation::Vertical).valign(gtk::Align::Center).build();
             caixa.append(&gtk::Label::new(Some(&rotulo(&d.nomes[pos]))));
@@ -715,13 +723,13 @@ impl Ui {
             }
             if let Some(outra) = &par {
                 b.add_css_class("socd");
-                dica.push(format!("SOCD com {outra}"));
+                dica.push(format!("{tipo_do_par} com {outra}"));
             } else {
                 b.remove_css_class("socd");
             }
-            if let Avancada::Dks(dks) = d.avancada[pos] {
+            if let Some(sigla) = crate::avancadas::sigla(&d.avancada[pos]) {
                 b.add_css_class("dks");
-                dica.push(format!("DKS com {} função(ões)", dks.teclas.iter().filter(|t| **t != 0).count()));
+                dica.push(format!("Função avançada: {sigla}"));
             } else {
                 b.remove_css_class("dks");
             }
@@ -862,10 +870,10 @@ impl Ui {
                 t.fn_funcao.set_subtitle(if e_fn { "A tecla Fn é a que ativa os atalhos" } else { "" });
             }
         }
-        self.atualizar_dks(&sel);
+        self.atualizar_avancada(&sel);
         t.g_socd.set_sensitive(!sel.is_empty());
         t.ap_socd.set_sensitive(sel.len() == 2);
-        t.tira_socd.set_sensitive(sel.iter().any(|p| matches!(d.avancada[p], Avancada::Socd { .. })));
+        t.tira_socd.set_sensitive(sel.iter().any(|p| matches!(d.avancada[p], Avancada::Socd { .. } | Avancada::Rs { .. })));
 
         // SOCD: as opções citam as teclas escolhidas; se já formam um par, mostra o modo em uso
         let (k1, k2) = match sel[..] {
@@ -877,14 +885,17 @@ impl Ui {
             format!("{k1} tem prioridade"),
             format!("{k2} tem prioridade"),
             "Nenhuma é enviada (neutro)".to_string(),
+            "Vale a mais pressionada (RS)".to_string(),
         ];
         let opcoes_ref: Vec<&str> = opcoes.iter().map(String::as_str).collect();
-        let mut escolhido = t.socd_modo.selected().min(3);
+        let mut escolhido = t.socd_modo.selected().min(OPCAO_RS);
         if let [a, b] = sel[..] {
-            if let Avancada::Socd { par, regra, .. } = d.avancada[&a] {
-                if par == b {
+            match d.avancada[&a] {
+                Avancada::Socd { par, regra, .. } if par == b => {
                     escolhido = ModoSocd::TODOS.iter().position(|m| *m == ModoSocd::da_regra(regra)).unwrap_or(0) as u32;
                 }
+                Avancada::Rs { par, .. } if par == b => escolhido = OPCAO_RS,
+                _ => {}
             }
         }
         t.socd_modo.set_model(Some(&gtk::StringList::new(&opcoes_ref)));
@@ -1199,7 +1210,9 @@ impl Ui {
 
     pub fn aplicar_socd(self: &Rc<Self>) {
         let [a, b] = self.selecionadas()[..] else { return };
-        let modo = ModoSocd::TODOS[(self.tec.socd_modo.selected() as usize).min(3)];
+        let escolhido = self.tec.socd_modo.selected();
+        let rs = escolhido == OPCAO_RS;
+        let modo = ModoSocd::TODOS[(escolhido as usize).min(3)];
         let (antigos, cod_a, cod_b) = {
             let dados = self.d.borrow();
             let Some(d) = dados.as_ref() else { return };
@@ -1207,7 +1220,7 @@ impl Ui {
             let antigos: Vec<Pos> = [a, b]
                 .iter()
                 .filter_map(|pos| match d.avancada[pos] {
-                    Avancada::Socd { par, .. } if par != a && par != b => Some(par),
+                    Avancada::Socd { par, .. } | Avancada::Rs { par, .. } if par != a && par != b => Some(par),
                     _ => None,
                 })
                 .collect();
@@ -1218,7 +1231,11 @@ impl Ui {
                 for par in &antigos {
                     t.remover_avancada(*par)?;
                 }
-                t.definir_socd(a, b, cod_a, cod_b, modo)?;
+                if rs {
+                    t.definir_rs(a, b, cod_a, cod_b, 0)?;
+                } else {
+                    t.definir_socd(a, b, cod_a, cod_b, modo)?;
+                }
                 Ok((antigos, t.avancada(a)?, t.avancada(b)?))
             },
             move |ui, (antigos, av_a, av_b)| {
@@ -1230,7 +1247,8 @@ impl Ui {
                     }
                     d.avancada.insert(a, av_a);
                     d.avancada.insert(b, av_b);
-                    format!("SOCD ligado entre {} e {}", rotulo(&d.nomes[&a]), rotulo(&d.nomes[&b]))
+                    let tipo = if rs { "RS" } else { "SOCD" };
+                    format!("{tipo} ligado entre {} e {}", rotulo(&d.nomes[&a]), rotulo(&d.nomes[&b]))
                 };
                 ui.avisar(&mensagem);
                 ui.pintar_teclas();
@@ -1245,7 +1263,7 @@ impl Ui {
             let dados = self.d.borrow();
             let Some(d) = dados.as_ref() else { return };
             for pos in self.selecionadas() {
-                if let Avancada::Socd { par, .. } = d.avancada[&pos] {
+                if let Avancada::Socd { par, .. } | Avancada::Rs { par, .. } = d.avancada[&pos] {
                     for alvo in [pos, par] {
                         if !alvos.contains(&alvo) {
                             alvos.push(alvo);
@@ -1270,7 +1288,7 @@ impl Ui {
                         d.avancada.insert(alvo, Avancada::Nenhuma);
                     }
                 }
-                ui.avisar("SOCD removido");
+                ui.avisar("Par desfeito");
                 ui.pintar_teclas();
                 ui.atualizar_painel();
             },
