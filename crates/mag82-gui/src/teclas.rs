@@ -24,7 +24,6 @@ const ALTURA_TECLADO: f64 = 0.42;
 /// Abaixo desta largura de página, a linha de modos e seleção se divide em duas.
 /// Posição da opção RS na lista do modo Pares, depois dos quatro modos do SOCD.
 const OPCAO_RS: u32 = 4;
-const LARGURA_ESTREITA: i32 = 960;
 /// Abaixo desta largura os títulos dos modos encurtam para o seletor caber.
 const LARGURA_TITULOS: i32 = 700;
 /// Abaixo desta largura a legenda das marcas não cabe em uma linha e é escondida.
@@ -102,6 +101,7 @@ pub enum Modo {
 }
 
 impl Modo {
+    #[cfg_attr(not(feature = "autoteste"), allow(dead_code))] // o autoteste passa por todos
     pub const TODOS: [Modo; 6] = [Modo::Atuacao, Modo::Remapear, Modo::Fn, Modo::Cor, Modo::Socd, Modo::Avancada];
 
     pub fn nome(self) -> &'static str {
@@ -126,12 +126,33 @@ impl Modo {
         }
     }
 
+    /// Os modos que têm botão no seletor. Remapear e Atalhos Fn dividem o botão "Funções": são a
+    /// mesma tarefa (o que a tecla envia) em duas camadas, escolhidas dentro do modo.
+    pub const NO_SELETOR: [Modo; 5] = [Modo::Atuacao, Modo::Remapear, Modo::Cor, Modo::Socd, Modo::Avancada];
+
+    /// O botão do seletor que representa este modo.
+    fn botao(self) -> Modo {
+        if self == Modo::Fn {
+            Modo::Remapear
+        } else {
+            self
+        }
+    }
+
+    /// Texto do botão do seletor.
+    fn no_seletor(self) -> &'static str {
+        match self.botao() {
+            Modo::Remapear => "Funções",
+            Modo::Cor => "Cor",
+            outro => outro.titulo(),
+        }
+    }
+
     /// Título que cabe no seletor quando a janela é estreita.
     fn titulo_curto(self) -> &'static str {
         match self {
             Modo::Atuacao => "Atuação",
-            Modo::Remapear => "Remap.",
-            Modo::Fn => "Fn",
+            Modo::Remapear | Modo::Fn => "Funções",
             Modo::Cor => "Cor",
             Modo::Socd => "Pares",
             Modo::Avancada => "Avanç.",
@@ -168,7 +189,10 @@ pub struct Teclas {
     pagina: gtk::Box,
     fixo: gtk::Fixed,
     legenda: gtk::Box,
-    linha_sel: gtk::Box,
+    /// Escolha da camada dentro do modo Funções.
+    camadas: gtk::Box,
+    camada_normal: gtk::ToggleButton,
+    camada_fn: gtk::ToggleButton,
     css: gtk::CssProvider,
     /// Tamanho da letra das teclas, que acompanha o tamanho delas.
     css_escala: gtk::CssProvider,
@@ -269,16 +293,19 @@ impl Teclas {
             .ellipsize(gtk::pango::EllipsizeMode::End)
             .css_classes(["title-4"])
             .build();
+        // comandos da seleção: discretos, porque o que importa na linha é o que está selecionado
         let todas = botao("Todas", false);
+        todas.add_css_class("flat");
         todas.set_tooltip_text(Some("Selecionar todas as teclas (Ctrl+A)"));
         let nenhuma = botao("Limpar", false);
+        nenhuma.add_css_class("flat");
         nenhuma.set_tooltip_text(Some("Limpar a seleção (Esc)"));
 
-        // ----- seletor de modo -----
-        let seletor = gtk::Box::builder().css_classes(["linked"]).valign(gtk::Align::Center).build();
+        // ----- seletor de modo: uma faixa só, centralizada, com as partes do mesmo tamanho -----
+        let seletor = gtk::Box::builder().css_classes(["linked"]).homogeneous(true).hexpand(true).build();
         let mut modo_btns: Vec<(Modo, gtk::ToggleButton)> = Vec::new();
-        for modo in Modo::TODOS {
-            let b = gtk::ToggleButton::builder().label(modo.titulo()).build();
+        for modo in Modo::NO_SELETOR {
+            let b = gtk::ToggleButton::builder().label(modo.no_seletor()).build();
             match modo_btns.first() {
                 Some((_, primeiro)) => b.set_group(Some(primeiro)),
                 None => b.set_active(true),
@@ -286,14 +313,21 @@ impl Teclas {
             seletor.append(&b);
             modo_btns.push((modo, b));
         }
-        seletor.set_halign(gtk::Align::Center);
-        let selecao = gtk::Box::builder().spacing(8).hexpand(true).build();
+        // dentro de Funções: a tecla sozinha ou com Fn
+        let camada_normal = gtk::ToggleButton::builder().label("Tecla sozinha").active(true).hexpand(true).build();
+        let camada_fn = gtk::ToggleButton::builder().label("Com Fn").group(&camada_normal).hexpand(true).build();
+        let camadas = gtk::Box::builder().css_classes(["linked"]).homogeneous(true).visible(false).build();
+        camadas.append(&camada_normal);
+        camadas.append(&camada_fn);
+        let selecao = gtk::Box::builder().spacing(4).build();
         selecao.append(&titulo_sel);
         selecao.append(&todas);
         selecao.append(&nenhuma);
-        let linha_sel = gtk::Box::builder().spacing(14).build();
+        // modos, seleção e camadas: três linhas na mesma coluna do painel de ajustes
+        let linha_sel = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(10).build();
         linha_sel.append(&seletor);
         linha_sel.append(&selecao);
+        linha_sel.append(&camadas);
         // os botões de ação ficam fora das linhas, para as linhas poderem estreitar com a janela
         let acoes = |botoes: &[&gtk::Button]| {
             let caixa = gtk::Box::builder().spacing(8).halign(gtk::Align::End).margin_top(12).build();
@@ -452,8 +486,8 @@ impl Teclas {
                 .build()
         };
         topo.append(&sem_minimo(legenda.upcast_ref()));
-        // em janela muito larga a linha não se espalha para longe do teclado e do painel
-        let linha_limitada = adw::Clamp::builder().child(&linha_sel).maximum_size(1100).build();
+        // a mesma largura do painel de ajustes: as bordas de tudo o que fica abaixo do teclado alinham
+        let linha_limitada = adw::Clamp::builder().child(&linha_sel).maximum_size(820).tightening_threshold(820).build();
         topo.append(&sem_minimo(linha_limitada.upcast_ref()));
         let pagina = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(8).build();
         pagina.append(&topo);
@@ -463,7 +497,9 @@ impl Teclas {
             pagina: pagina.clone(),
             fixo,
             legenda,
-            linha_sel,
+            camadas,
+            camada_normal,
+            camada_fn,
             css,
             css_escala,
             u: Cell::new(U_PADRAO),
@@ -547,6 +583,12 @@ pub fn ligar(ui: &Rc<Ui>) {
         });
     }
     let ui2 = ui.clone();
+    t.camada_fn.connect_toggled(move |b| {
+        if !ui2.carregando.get() {
+            ui2.mudar_modo(if b.is_active() { Modo::Fn } else { Modo::Remapear });
+        }
+    });
+    let ui2 = ui.clone();
     t.rt.connect_active_notify(move |_| {
         ui2.sensibilizar_rt();
         ui2.campo_editado(None);
@@ -629,15 +671,12 @@ impl Ui {
     pub fn ajustar_tamanho(&self) {
         let t = &self.tec;
         let (largura, altura) = t.tamanho.get();
-        let estreita = largura > 0 && largura < LARGURA_ESTREITA;
-        t.linha_sel.set_orientation(if estreita { gtk::Orientation::Vertical } else { gtk::Orientation::Horizontal });
-        // seis modos por extenso não cabem na janela mínima: lá os títulos encurtam
+        // em janela muito estreita (letra grande) os títulos encurtam
         for (modo, botao) in &t.modo_btns {
             let curto = largura > 0 && largura < LARGURA_TITULOS;
-            let titulo = if curto { modo.titulo_curto() } else { modo.titulo() };
+            let titulo = if curto { modo.titulo_curto() } else { modo.no_seletor() };
             if botao.label().as_deref() != Some(titulo) {
                 botao.set_label(titulo);
-                botao.set_tooltip_text(curto.then_some(modo.titulo()));
             }
         }
         t.legenda.set_visible(largura == 0 || largura >= LARGURA_LEGENDA);
@@ -818,9 +857,12 @@ impl Ui {
         t.modo.set(modo);
         self.silencioso(|| {
             for (m, b) in &t.modo_btns {
-                b.set_active(*m == modo);
+                b.set_active(*m == modo.botao());
             }
+            t.camada_fn.set_active(modo == Modo::Fn);
+            t.camada_normal.set_active(modo != Modo::Fn);
         });
+        t.camadas.set_visible(modo.botao() == Modo::Remapear);
         t.paineis.set_visible_child_name(modo.nome());
         self.aplicar_limite();
         self.pintar_teclas();
@@ -834,10 +876,12 @@ impl Ui {
         let Some(d) = dados.as_ref() else { return };
         let sel = self.selecionadas();
         let modo = t.modo.get();
-        t.titulo_sel.set_label(&match sel.len() {
-            0 => modo.convite().to_string(),
-            1 => rotulo(&d.nomes[&sel[0]]),
-            n => format!("{n} teclas selecionadas"),
+        // sempre uma frase: o nome da tecla sozinho na linha não dizia o que era
+        t.titulo_sel.set_label(&match sel[..] {
+            [] => modo.convite().to_string(),
+            [unica] => format!("Tecla selecionada: {}", rotulo_longo(&d.nomes[&unica])),
+            [a, b] => format!("Teclas selecionadas: {} e {}", rotulo_longo(&d.nomes[&a]), rotulo_longo(&d.nomes[&b])),
+            _ => format!("{} teclas selecionadas", sel.len()),
         });
         // Nos modos de uma ou duas teclas o botão "Todas" não serve, mas continua ocupando o lugar
         // dele: se sumisse, a linha mudaria de tamanho a cada troca de modo.
