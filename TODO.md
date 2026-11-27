@@ -21,7 +21,7 @@
       as ações direto, sem simular mouse nem teclado.
 - [ ] Luz lateral: os efeitos 6 a 10 não têm nome oficial e aparecem como "Efeito N".
 - [ ] Macros: falta gravar digitando (hoje os passos são montados um a um) e conferir, apertando a
-      tecla, o que cada modo de disparo faz. A espera vem depois da ação (conferido digitando).
+      tecla, o que cada modo de disparo faz. O modo de um toque e a espera (que vem depois da ação) foram conferidos digitando.
       Ler, gravar, ligar a uma tecla e apagar já foram conferidos no teclado (8 macros, 224 ações
       ao todo).
 - [ ] Teclas avançadas MT, TGL, MPT, END e RS: o teclado guarda e devolve a configuração, mas
