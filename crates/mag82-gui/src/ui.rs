@@ -76,6 +76,7 @@ pub struct Ui {
 
     pub tec: Teclas,
     pub av: crate::avancadas::PainelAvancadas,
+    pub curso: crate::curso::PainelCurso,
     pub luz: PainelLuz,
     pub macros: crate::macros::PainelMacros,
     pub pagina_macros: adw::PreferencesPage,
@@ -95,7 +96,7 @@ impl Ui {
         let tela = gdk::Display::default().expect("sem display gráfico");
         gtk::style_context_add_provider_for_display(&tela, &css, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-        let (tec, pagina_teclas, av) = Teclas::construir(&tela);
+        let (tec, pagina_teclas, av, curso) = Teclas::construir(&tela);
         let (luz, pagina_luz) = PainelLuz::construir();
         let (disp, pagina_disp) = PainelDisp::construir();
 
@@ -182,6 +183,7 @@ impl Ui {
             perfil,
             tec,
             av,
+            curso,
             luz,
             macros,
             pagina_macros,
@@ -238,6 +240,7 @@ impl Ui {
         });
         crate::teclas::ligar(&ui);
         crate::avancadas::ligar(&ui);
+        crate::curso::ligar(&ui);
         crate::luz::ligar(&ui);
         crate::macros::ligar(&ui);
         crate::dispositivo::ligar(&ui);

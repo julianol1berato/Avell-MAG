@@ -8,12 +8,14 @@
 //! - `avancadas`: modo Avançada da página Teclas (DKS, multiponto, dupla função, contínuo, ao soltar);
 //! - `macros`: página das macros;
 //! - `sobre`: janela Sobre, com a abertura animada;
+//! - `curso`: curso das teclas ao vivo, no modo Atuação;
 //! - `calibracao`: diálogo de calibração das teclas;
 //! - `teste`: autoteste acionado pela variável `MAG82_TESTE`.
 
 mod atualizacao;
 mod avancadas;
 mod calibracao;
+mod curso;
 mod dados;
 mod dispositivo;
 
@@ -31,7 +33,11 @@ use adw::prelude::*;
 use gtk::glib;
 
 fn main() -> glib::ExitCode {
-    let app = adw::Application::builder().application_id("io.github.mag82linux").build();
+    // O autoteste roda com outra identidade: assim ele abre a própria janela mesmo com o programa
+    // de verdade aberto, em vez de só chamar a janela que já existe e sair.
+    let em_teste = cfg!(feature = "autoteste") && std::env::var_os("MAG82_TESTE").is_some();
+    let identidade = if em_teste { "io.github.mag82linux.Teste" } else { "io.github.mag82linux" };
+    let app = adw::Application::builder().application_id(identidade).build();
     app.connect_activate(|app| {
         if let Some(janela) = app.active_window() {
             janela.present();

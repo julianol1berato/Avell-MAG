@@ -362,11 +362,13 @@ pub struct Config {
     pub verificado: u64,
     /// Versão nova já vista e ainda não instalada.
     pub disponivel: String,
+    /// Mostrar o curso das teclas ao vivo no modo Atuação.
+    pub curso_ao_vivo: bool,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self { atualizacoes: true, pular: String::new(), verificado: 0, disponivel: String::new() }
+        Self { atualizacoes: true, pular: String::new(), verificado: 0, disponivel: String::new(), curso_ao_vivo: true }
     }
 }
 
@@ -384,6 +386,7 @@ impl Config {
                 "pular" => c.pular = valor.trim().to_string(),
                 "verificado" => c.verificado = valor.trim().parse().unwrap_or(0),
                 "disponivel" => c.disponivel = valor.trim().to_string(),
+                "curso_ao_vivo" => c.curso_ao_vivo = valor.trim() != "nao",
                 _ => {}
             }
         }
@@ -392,11 +395,12 @@ impl Config {
 
     pub fn em_texto(&self) -> String {
         format!(
-            "atualizacoes={}\npular={}\nverificado={}\ndisponivel={}\n",
+            "atualizacoes={}\npular={}\nverificado={}\ndisponivel={}\ncurso_ao_vivo={}\n",
             if self.atualizacoes { "sim" } else { "nao" },
             self.pular,
             self.verificado,
-            self.disponivel
+            self.disponivel,
+            if self.curso_ao_vivo { "sim" } else { "nao" }
         )
     }
 
@@ -899,11 +903,18 @@ mod testes {
 
     #[test]
     fn config_vai_e_volta() {
-        let c = Config { atualizacoes: false, pular: "0.1.1".into(), verificado: 1234, disponivel: "0.1.2".into() };
+        let c = Config {
+            atualizacoes: false,
+            pular: "0.1.1".into(),
+            verificado: 1234,
+            disponivel: "0.1.2".into(),
+            curso_ao_vivo: false,
+        };
         assert_eq!(Config::de_texto(&c.em_texto()), c);
         // arquivo vazio ou estranho: vale o padrão, com a consulta ligada
         assert_eq!(Config::de_texto("lixo\n=\nverificado=abc\n"), Config::default());
         assert!(Config::default().atualizacoes);
+        assert!(Config::default().curso_ao_vivo, "o curso ao vivo vem ligado");
     }
 
     #[test]

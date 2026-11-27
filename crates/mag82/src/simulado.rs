@@ -23,6 +23,8 @@ pub struct Simulado {
     calibrando: bool,
     /// Macros: o cabeçalho (ativa, total de ações, repetições, modo) e as ações de cada uma.
     macros: Vec<([u8; 6], Vec<u8>)>,
+    /// Leituras de curso já atendidas: o simulado "aperta" a tecla W devagar, de novo e de novo.
+    quadros: u32,
     /// Leituras de atuação desde que a calibração abriu: cada tecla "é pressionada" na segunda
     /// vez em que é lida, para a calibração andar sozinha.
     leituras: HashMap<(u8, u8), u8>,
@@ -48,7 +50,7 @@ impl Simulado {
             respostas.insert(bytes(pedido), pacote);
         }
         let macros = vec![([0; 6], Vec::new()); crate::MACROS_MAX as usize];
-        Self { respostas, calibrando: false, macros, leituras: HashMap::new() }
+        Self { respostas, calibrando: false, macros, quadros: 0, leituras: HashMap::new() }
     }
 
     /// O estado compartilhado por todas as conexões simuladas deste processo, como um teclado só.
@@ -163,6 +165,16 @@ impl Simulado {
                 let inicio = (60 * pagina as usize).min(acoes.len());
                 let fim = (inicio + 60).min(acoes.len());
                 eco[4..4 + fim - inicio].copy_from_slice(&acoes[inicio..fim]);
+            }
+
+            // ----- curso ao vivo: tudo solto, menos a tecla W, que desce e sobe -----
+            [grupo::PERFORMANCE, 3, 1, linha, ..] => {
+                if linha == 2 {
+                    self.quadros = self.quadros.wrapping_add(1);
+                    let fase = (self.quadros % 40) as i32;
+                    let curso = (3400 - (fase - 20).abs() * 170).clamp(0, 3400) as u16;
+                    eco[4 + 2 * 2..6 + 2 * 2].copy_from_slice(&curso.to_le_bytes());
+                }
             }
 
             // ----- leituras -----
