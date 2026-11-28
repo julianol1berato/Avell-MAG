@@ -112,6 +112,9 @@ E mais:
 - **Teclas avançadas**: DKS (até quatro funções por ponto do curso), dupla função (toque e segurar),
   contínuo, multiponto, ao soltar e RS (entre duas teclas, vale a mais pressionada).
   Veja [o que cada uma aceita](#o-que-as-teclas-avançadas-aceitam).
+- **Predefinições** nos pares e nas teclas avançadas: SOCD em A/D ou W/S, Caps Lock que é Esc no
+  toque e Ctrl ao segurar, W que anda sem segurar ou corre ao apertar até o fundo. Elas escolhem as
+  teclas e preenchem a tela; você confere e aplica.
 - **Linha de comando** com tudo o que a interface faz.
 - **Sem root**: roda como usuário comum.
 

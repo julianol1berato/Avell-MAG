@@ -44,6 +44,37 @@ const TIPOS: [(&str, &str, &str); 5] = [
     ),
 ];
 
+/// Exemplo pronto de função avançada: a tecla é procurada pelo que ela envia de fábrica.
+pub struct Predef {
+    pub titulo: &'static str,
+    pub explicacao: &'static str,
+    pub tecla: u16,
+    pub avancada: Avancada,
+}
+
+/// Os três usam comportamentos conferidos digitando no teclado: a dupla função, o contínuo e o
+/// multiponto, em que as funções se somam conforme a tecla afunda.
+pub const PREDEFS: [Predef; 3] = [
+    Predef {
+        titulo: "Caps Lock: Esc e Ctrl",
+        explicacao: "Um toque curto envia Esc; segurando, a tecla vira Ctrl",
+        tecla: 0x39,
+        avancada: Avancada::Mt(Mt { toque: 0x29, segura: 0xE0, tempo: 200 }),
+    },
+    Predef {
+        titulo: "W: andar sem segurar",
+        explicacao: "Um toque deixa o W pressionado; outro toque solta",
+        tecla: 0x1A,
+        avancada: Avancada::Tgl(Tgl { tecla: 0x1A, tempo: 200 }),
+    },
+    Predef {
+        titulo: "W: correr ao apertar até o fundo",
+        explicacao: "Até a metade envia só o W; no fundo, soma o Shift",
+        tecla: 0x1A,
+        avancada: Avancada::Mpt(Mpt { teclas: [0x1A, 0, 0xE1], pontos: [1500, 2000, 3000] }),
+    },
+];
+
 /// O que pode ir numa função avançada, mostrado embaixo da explicação de cada tipo. O teclado
 /// recusa o resto (ver [`mag82::serve_em_avancada`]), por isso as listas só trazem teclas comuns.
 const SO_TECLAS_COMUNS: &str = "As funções daqui são sempre teclas comuns: letras, números, F1 a F12, setas, Ctrl, \
@@ -119,6 +150,11 @@ pub struct PainelAvancadas {
     paineis: gtk::Stack,
     aplicar: gtk::Button,
     remover: gtk::Button,
+    /// Explicação e campos: ficam apagados enquanto não há tecla selecionada.
+    corpo: gtk::Box,
+    /// Mostrado pela página Teclas na linha da seleção.
+    pub predefs: gtk::MenuButton,
+    lista_predefs: gtk::ListBox,
     /// A tecla cuja função está no painel: ele só é preenchido de novo quando a seleção muda,
     /// para não apagar o que o usuário está editando.
     mostrando: Cell<Option<Pos>>,
@@ -265,13 +301,17 @@ impl PainelAvancadas {
 
         let remover = botao("Remover", false);
         let aplicar = botao("Aplicar", true);
+        let itens: Vec<(&str, &str)> = PREDEFS.iter().map(|p| (p.titulo, p.explicacao)).collect();
+        let (predefs, lista_predefs) = crate::util::menu_de_predefinicoes(&itens);
         let acoes = gtk::Box::builder().spacing(8).halign(gtk::Align::End).build();
         acoes.append(&remover);
         acoes.append(&aplicar);
 
+        let corpo = coluna();
+        corpo.append(&explicacao);
+        corpo.append(&paineis);
         let painel = coluna();
-        painel.append(&explicacao);
-        painel.append(&paineis);
+        painel.append(&corpo);
         painel.append(&acoes);
 
         let p = Self {
@@ -283,6 +323,9 @@ impl PainelAvancadas {
             paineis,
             aplicar,
             remover,
+            corpo,
+            predefs,
+            lista_predefs,
             mostrando: Cell::new(None),
             dks_inicio,
             dks_fundo,
@@ -379,6 +422,12 @@ impl PainelAvancadas {
         self.escolher_tipo(tipo);
     }
 
+    /// A função avançada que está montada na tela, para conferir uma predefinição.
+    #[cfg_attr(not(feature = "autoteste"), allow(dead_code))]
+    pub fn montada(&self) -> Avancada {
+        self.da_tela()
+    }
+
     /// Deixa todos os painéis em branco, sem mudar o tipo escolhido.
     fn limpar(&self) {
         let tipo = self.tipo();
@@ -450,6 +499,11 @@ pub fn ligar(ui: &Rc<Ui>) {
         });
     }
     let ui2 = ui.clone();
+    ui.av.lista_predefs.connect_row_activated(move |_, linha| {
+        ui2.av.predefs.popdown();
+        ui2.usar_predef_avancada(linha.index() as usize);
+    });
+    let ui2 = ui.clone();
     ui.av.aplicar.connect_clicked(move |_| ui2.aplicar_avancada());
     let ui2 = ui.clone();
     ui.av.remover.connect_clicked(move |_| ui2.remover_avancada());
@@ -466,7 +520,8 @@ impl Ui {
             _ => None,
         };
         let atual = escolhida.map(|pos| d.avancada[&pos]).filter(de_uma_tecla);
-        p.painel.set_sensitive(escolhida.is_some());
+        p.corpo.set_sensitive(escolhida.is_some());
+        p.aplicar.set_sensitive(escolhida.is_some());
         p.remover.set_sensitive(atual.is_some());
         if p.mostrando.replace(escolhida) != escolhida {
             p.limpar();
@@ -474,6 +529,19 @@ impl Ui {
                 p.mostrar(atual);
             }
         }
+    }
+
+    /// Seleciona a tecla da predefinição e monta a função avançada na tela, sem gravar.
+    pub fn usar_predef_avancada(&self, indice: usize) {
+        let Some(predef) = PREDEFS.get(indice) else { return };
+        let pos = self.d.borrow().as_ref().and_then(|d| d.fabrica.iter().find(|(_, c)| **c == predef.tecla).map(|(p, _)| *p));
+        let Some(pos) = pos else {
+            self.avisar_erro("Este teclado não tem a tecla dessa predefinição");
+            return;
+        };
+        self.selecionar(&[pos]);
+        self.av.mostrar(&predef.avancada);
+        self.avisar("Predefinição montada na tela. Confira e clique em Aplicar");
     }
 
     pub fn aplicar_avancada(self: &Rc<Self>) {
@@ -546,5 +614,24 @@ impl Ui {
                 ui.atualizar_painel();
             },
         );
+    }
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+
+    #[test]
+    fn predefinicoes_sao_validas() {
+        for p in &PREDEFS {
+            let conferida = match &p.avancada {
+                Avancada::Mt(mt) => mt.validar(),
+                Avancada::Tgl(tgl) => tgl.validar(),
+                Avancada::Mpt(mpt) => mpt.validar(),
+                outra => panic!("predefinição de um tipo sem painel: {outra:?}"),
+            };
+            assert!(conferida.is_ok(), "{}: {conferida:?}", p.titulo);
+            assert!(mag82::serve_em_avancada(p.tecla));
+        }
     }
 }

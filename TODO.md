@@ -7,7 +7,6 @@ O que falta fazer ou conferir. O que já foi decidido como "fica assim" está no
 A ordem vem do levantamento em [docs/pesquisa-de-uso.md](docs/pesquisa-de-uso.md): o que usuários
 de teclados magnéticos mais pedem e o programa ainda não tem.
 
-- [ ] Predefinições de teclas avançadas: SOCD em A/D e W/S, dupla função no Caps Lock, num clique.
 - [ ] Macros: gravar digitando. Hoje os passos são montados um a um.
 - [ ] Troca automática de perfil conforme o programa ou jogo aberto. Precisa de algo rodando em
       segundo plano e, no Wayland, não há forma geral de saber qual janela está ativa; se for
