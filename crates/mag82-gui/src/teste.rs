@@ -806,6 +806,42 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     pausa(300).await;
     ocioso(ui).await;
     println!("importação desfeita: {}", antes == retrato(ui));
+    // copiar para outro perfil: troca de perfil, importa o arquivo editado, confere, desfaz e volta
+    let editado_de_novo = pasta.join("para-o-outro.mag82");
+    std::fs::write(&editado_de_novo, editado.join("\n")).ok();
+    let perfil0 = ui.d.borrow().as_ref().unwrap().perfil_atual;
+    let outro_perfil = if perfil0 == 1 { 0 } else { 1 };
+    ui.trocar_perfil(outro_perfil);
+    ocioso(ui).await;
+    let antes_no_outro = retrato(ui);
+    ui.importar_de(&editado_de_novo);
+    ocioso(ui).await;
+    pausa(300).await;
+    let perguntou = responder("importar").is_some();
+    ocioso(ui).await;
+    pausa(300).await;
+    ocioso(ui).await;
+    let chegou = {
+        let dados = ui.d.borrow();
+        let d = dados.as_ref().unwrap();
+        d.perfil_atual == outro_perfil && d.atuacao[&W].rapid_trigger() != rt0 && d.luz.brilho == brilho_novo
+    };
+    if perguntou {
+        ui.importar_de(&guardada);
+        ocioso(ui).await;
+        pausa(300).await;
+        responder("importar");
+        ocioso(ui).await;
+        pausa(300).await;
+        ocioso(ui).await;
+    }
+    let outro_restaurado = antes_no_outro == retrato(ui);
+    ui.trocar_perfil(perfil0);
+    ocioso(ui).await;
+    println!(
+        "cópia para outro perfil: chegou={chegou} o outro perfil voltou ao que era={outro_restaurado} este ficou como estava={}",
+        antes == retrato(ui)
+    );
     // o que o programa não conhece não é gravado: o arquivo é recusado antes de qualquer gravação
     std::fs::write(&outro, "mag82-configuracao 1\n[funcoes]\n0 1,14 0xf203\n").ok();
     ui.importar_de(&outro);

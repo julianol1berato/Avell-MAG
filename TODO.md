@@ -31,8 +31,6 @@ de teclados magnéticos mais pedem e o programa ainda não tem.
 
 - [ ] O spec do RPM baixa as dependências Rust durante a compilação; para os construtores oficiais
       do Fedora (sem rede) seria preciso empacotar as dependências (vendor).
-- [ ] O teclado simulado guarda um perfil só: trocar de perfil muda o número do perfil ativo, mas
-      as teclas e as luzes continuam as mesmas. No teclado de verdade cada perfil tem as suas.
 
 ## Limites conhecidos, sem solução à vista
 

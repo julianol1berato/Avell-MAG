@@ -28,6 +28,18 @@ pub struct Simulado {
     /// Leituras de atuação desde que a calibração abriu: cada tecla "é pressionada" na segunda
     /// vez em que é lida, para a calibração andar sozinha.
     leituras: HashMap<(u8, u8), u8>,
+    /// O que cada perfil que não está ativo guarda: as respostas que são do perfil e as macros.
+    /// Um perfil que nunca foi ativado ainda não está aqui e começa como o de fábrica.
+    perfis: HashMap<u8, DoPerfil>,
+}
+
+/// A parte do estado que pertence a um perfil.
+type DoPerfil = (HashMap<Vec<u8>, [u8; TAM]>, Vec<([u8; 6], Vec<u8>)>);
+
+/// Verdadeiro se a resposta a este pedido muda de um perfil para outro: funções das teclas,
+/// atuação, luzes e teclas avançadas. O resto (perfis, taxa, dados do aparelho) é do teclado.
+fn do_perfil(pedido: &[u8]) -> bool {
+    matches!(pedido.first(), Some(&grupo::LAYOUT | &grupo::PERFORMANCE | &grupo::LIGHTING | &grupo::TECLA_AVANCADA))
 }
 
 impl Default for Simulado {
@@ -50,13 +62,45 @@ impl Simulado {
             respostas.insert(bytes(pedido), pacote);
         }
         let macros = vec![([0; 6], Vec::new()); crate::MACROS_MAX as usize];
-        Self { respostas, calibrando: false, macros, quadros: 0, leituras: HashMap::new() }
+        Self { respostas, calibrando: false, macros, quadros: 0, leituras: HashMap::new(), perfis: HashMap::new() }
     }
 
     /// O estado compartilhado por todas as conexões simuladas deste processo, como um teclado só.
     pub fn compartilhado() -> &'static Mutex<Simulado> {
         static UNICO: OnceLock<Mutex<Simulado>> = OnceLock::new();
         UNICO.get_or_init(|| Mutex::new(Simulado::novo()))
+    }
+
+    /// Troca o perfil ativo: guarda o que é do perfil atual e traz o que o outro tinha. No
+    /// teclado de verdade cada perfil tem as suas teclas, luzes e macros (conferido no MAG82).
+    fn trocar_perfil(&mut self, novo: u8) {
+        let Some(atual) = self.respostas.get(&[grupo::GLOBAL, 3, 1][..]).map(|r| r[3]) else { return };
+        if novo == atual {
+            return;
+        }
+        let (mut respostas, macros) = match self.perfis.remove(&novo) {
+            Some(guardado) => guardado,
+            None => {
+                let fabrica = Self::novo();
+                (fabrica.respostas.into_iter().filter(|(pedido, _)| do_perfil(pedido)).collect(), fabrica.macros)
+            }
+        };
+        // a marca de calibração de cada tecla é do teclado, não do perfil
+        for (pedido, resposta) in respostas.iter_mut() {
+            if let [grupo::PERFORMANCE, 1, ..] = pedido[..] {
+                if let Some(agora) = self.respostas.get(pedido) {
+                    resposta[4 + 16] = agora[4 + 16];
+                }
+            }
+        }
+        let mut deste: HashMap<Vec<u8>, [u8; TAM]> = HashMap::new();
+        for (pedido, resposta) in respostas {
+            if let Some(antiga) = self.respostas.insert(pedido.clone(), resposta) {
+                deste.insert(pedido, antiga);
+            }
+        }
+        let macros_deste = std::mem::replace(&mut self.macros, macros);
+        self.perfis.insert(atual, (deste, macros_deste));
     }
 
     fn guardada(&mut self, pedido: &[u8]) -> Option<&mut [u8; TAM]> {
@@ -75,7 +119,10 @@ impl Simulado {
         eco[..dados.len().min(TAM)].copy_from_slice(&dados[..dados.len().min(TAM)]);
         match *dados {
             // ----- gravações: mudam o que as leituras seguintes devolvem -----
-            [grupo::GLOBAL, 3, 2, perfil, ..] => self.guardada(&[grupo::GLOBAL, 3, 1])?[3] = perfil,
+            [grupo::GLOBAL, 3, 2, perfil, ..] => {
+                self.trocar_perfil(perfil);
+                self.guardada(&[grupo::GLOBAL, 3, 1])?[3] = perfil;
+            }
             [grupo::GLOBAL, 3, 4, perfil, ref nome @ ..] => {
                 let guardado = self.guardada(&[grupo::GLOBAL, 3, 3, perfil])?;
                 guardado[4..36].fill(0);
@@ -242,6 +289,34 @@ mod testes {
         assert!(s.responder(&[grupo::LAYOUT, 1, 0, 0]).is_some());
         assert!(s.responder(&[grupo::PERFORMANCE, 1, 5, 14]).is_some());
         assert!(s.responder(&[9, 9]).is_none(), "leitura desconhecida fica sem resposta");
+    }
+
+    #[test]
+    fn cada_perfil_tem_a_sua_configuracao() {
+        let mut s = Simulado::novo();
+        let funcao = |s: &mut Simulado| s.responder(&[grupo::LAYOUT, 3, 0, 2, 2]).unwrap()[5];
+        let brilho = |s: &mut Simulado| s.responder(&[grupo::LIGHTING, 1, 0, 0]).unwrap()[4..10].to_vec();
+        let (funcao0, luz0) = (funcao(&mut s), brilho(&mut s));
+        // muda uma tecla, a luz e a taxa no perfil 1
+        s.responder(&[grupo::LAYOUT, 4, 0, 2, 2, 0x0e, 0]).unwrap();
+        s.responder(&[grupo::LIGHTING, 2, 0, 0, 1, 2, 33, 44, 0, 5]).unwrap();
+        s.responder(&[grupo::GLOBAL, 5, 2, 3]).unwrap();
+        let luz1 = brilho(&mut s);
+        assert_ne!(luz1, luz0);
+        // o perfil 2 começa de fábrica; a taxa é do teclado e continua
+        s.responder(&[grupo::GLOBAL, 3, 2, 1]).unwrap();
+        assert_eq!(s.responder(&[grupo::GLOBAL, 3, 1]).unwrap()[3], 1);
+        assert_eq!((funcao(&mut s), brilho(&mut s)), (funcao0, luz0.clone()));
+        assert_eq!(s.responder(&[grupo::GLOBAL, 5, 1]).unwrap()[3], 3);
+        s.responder(&[grupo::LAYOUT, 4, 0, 2, 2, 0x0f, 0]).unwrap();
+        // de volta ao 1, está como foi deixado; e o 2 guarda o que recebeu
+        s.responder(&[grupo::GLOBAL, 3, 2, 0]).unwrap();
+        assert_eq!((funcao(&mut s), brilho(&mut s)), (0x0e, luz1));
+        s.responder(&[grupo::GLOBAL, 3, 2, 1]).unwrap();
+        assert_eq!(funcao(&mut s), 0x0f);
+        // pedir o perfil que já está ativo não muda nada
+        s.responder(&[grupo::GLOBAL, 3, 2, 1]).unwrap();
+        assert_eq!(funcao(&mut s), 0x0f);
     }
 
     #[test]
