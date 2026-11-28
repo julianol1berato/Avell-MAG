@@ -83,6 +83,9 @@ confere "predefinição avançada 0: tecla certa=true montada igual=true"
 confere "predefinição avançada 1: tecla certa=true montada igual=true"
 confere "predefinição avançada 2: tecla certa=true montada igual=true"
 confere "predefinições: nada gravado=true"
+# troca automática de perfil: os ajustes e o início com a sessão acompanham o interruptor
+confere "troca automática ligada: ajuste=true regras=1 na tela=1 perfil da regra=Some(1) inicia com a sessão=true"
+confere "troca automática desligada: ajuste=false inicia com a sessão=false"
 # cópia da configuração: exporta, importa um arquivo editado, desfaz e recusa o que não conhece
 confere "exportação: arquivo com as seções=true"
 confere "importar o que já está no teclado: sem diálogo=true"

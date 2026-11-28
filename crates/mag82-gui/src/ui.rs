@@ -544,7 +544,8 @@ impl Ui {
 
     // ---------- perfis ----------
 
-    pub fn preencher_perfis(&self, nomes: &[String], atual: u8) {
+    pub fn preencher_perfis(self: &Rc<Self>, nomes: &[String], atual: u8) {
+        self.preencher_automatico(nomes);
         let nomes_ref: Vec<&str> = nomes.iter().map(String::as_str).collect();
         self.perfil.set_model(Some(&gtk::StringList::new(&nomes_ref)));
         self.perfil.set_selected(u32::from(atual));

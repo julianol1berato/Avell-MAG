@@ -13,6 +13,7 @@
 //! - `teste`: autoteste acionado pela variável `MAG82_TESTE`.
 
 mod atualizacao;
+mod automatico;
 mod avancadas;
 mod calibracao;
 mod captura;

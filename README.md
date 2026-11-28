@@ -106,6 +106,8 @@ E mais:
 
 - **Macros**: sequências de teclas que o teclado executa sozinho, ligadas a qualquer tecla. Monte
   os passos um a um ou digite a sequência e deixe o programa captar, com ou sem as pausas.
+- **Troca automática de perfil**: o teclado muda de perfil quando um programa ou jogo abre e volta
+  quando ele fecha. Desligada por padrão. Veja [como funciona](#troca-automática-de-perfil).
 - **Cópia da configuração**: salve o perfil inteiro num arquivo e traga de volta quando quiser, para
   guardar, copiar para outro perfil ou compartilhar. Veja [como funciona](#cópia-da-configuração).
 - **Curso ao vivo**: veja na tela o quanto a tecla afunda e onde cai o ponto de atuação.
@@ -207,6 +209,35 @@ mag82 calibrar
 ```
 
 `mag82 --help` lista o resto.
+
+## Troca automática de perfil
+
+Em **Dispositivo → Perfil**, ligue **Trocar de perfil conforme o programa aberto** e crie as
+regras: escolha um programa entre os que estão abertos e o perfil que ele usa. Quando o programa
+abre, o teclado vai para o perfil dele; quando fecha, volta ao perfil de antes.
+
+- **O que conta é o programa estar aberto**, não a janela estar em foco. É assim de propósito:
+  funciona igual no X11 e no Wayland, onde não há forma geral de saber qual janela está ativa.
+- **Com mais de um programa da lista aberto**, vale o que vem primeiro na lista.
+- **Se você trocar de perfil à mão** com o programa aberto, o teclado fica onde você deixou quando
+  o programa fechar.
+- **Um vigia roda em segundo plano** enquanto o recurso está ligado: ele inicia com a sessão,
+  confere os programas abertos a cada dois segundos e só fala com o teclado no instante da troca.
+  Desligado (o padrão), nada do programa roda em segundo plano.
+- Programas feitos em Python ou em script aparecem com o nome do interpretador (`python3`,
+  `bash`), e jogos do Windows, com o nome do `.exe`.
+
+Pela linha de comando:
+
+```sh
+mag82 automatico abertos          # os programas abertos, com o nome a usar
+mag82 automatico regra 2 cs2      # enquanto o cs2 estiver aberto, perfil 2
+mag82 automatico ligar            # liga o recurso e inicia o vigia
+mag82 automatico                  # mostra a situação e a regra em vigor
+```
+
+Os ajustes ficam em `~/.config/mag82/perfil-automatico`, e o início com a sessão, em
+`~/.config/autostart/mag82-perfil-automatico.desktop`.
 
 ## Cópia da configuração
 

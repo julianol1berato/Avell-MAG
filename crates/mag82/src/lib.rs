@@ -4,6 +4,7 @@
 //! `[grupo, subcomando, argumentos..., zeros]`.
 //! A resposta repete grupo e subcomando.
 
+pub mod automatico;
 pub mod copia;
 pub mod registro;
 pub mod simulado;

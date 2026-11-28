@@ -232,3 +232,44 @@ fn exporta_e_importa() {
     assert!(!certo && texto.contains("não tem tecla na posição 9,9"), "{texto}");
     std::fs::remove_dir_all(&pasta).ok();
 }
+
+#[test]
+fn troca_automatica_de_perfil() {
+    // pasta de ajustes própria: o teste não mexe na configuração de quem o roda
+    let pasta = std::env::temp_dir().join(format!("mag82-cli-automatico-{}", std::process::id()));
+    std::fs::create_dir_all(&pasta).unwrap();
+    let rodar = |args: &[&str]| {
+        let saida = Command::new(env!("CARGO_BIN_EXE_mag82"))
+            .args(args)
+            .env("MAG82_SIMULADO", "1")
+            .env("XDG_CONFIG_HOME", &pasta)
+            .env("XDG_STATE_HOME", &pasta)
+            .env("XDG_RUNTIME_DIR", &pasta)
+            .output()
+            .expect("não foi possível rodar o mag82");
+        (saida.status.success(), format!("{}{}", String::from_utf8_lossy(&saida.stdout), String::from_utf8_lossy(&saida.stderr)))
+    };
+    assert!(rodar(&["automatico"]).1.contains("desligada"));
+    // o próprio mag82 é um programa aberto enquanto roda: serve de programa da regra
+    let eu = std::path::Path::new(env!("CARGO_BIN_EXE_mag82")).file_name().unwrap().to_str().unwrap().to_lowercase();
+    assert!(rodar(&["automatico", "abertos"]).1.lines().any(|l| l == eu));
+    let texto = rodar(&["automatico", "regra", "3", &eu]).1;
+    assert!(texto.contains(&format!("perfil 3: {eu}  (aberto: é a regra em vigor)")), "{texto}");
+    assert!(rodar(&["automatico", "regra", "2", "Um Jogo Que Nao Existe.exe"]).1.contains("perfil 2: um jogo que nao existe.exe"));
+    // desligado, o vigia não faz nada e sai
+    let texto = rodar(&["vigiar", "--uma-vez"]).1;
+    assert!(texto.contains("está desligada") && !texto.contains("perfil 3"), "{texto}");
+    // ligado (pelo arquivo, para o teste não deixar um vigia rodando): uma conferência troca o perfil
+    let arquivo = pasta.join("mag82/perfil-automatico");
+    let ajustes = std::fs::read_to_string(&arquivo).unwrap().replace("ligado nao", "ligado sim");
+    std::fs::write(&arquivo, ajustes).unwrap();
+    let texto = rodar(&["vigiar", "--uma-vez"]).1;
+    assert!(texto.contains(&format!("{eu} abriu: perfil 3")), "{texto}");
+    // regra para um perfil que o teclado não tem
+    rodar(&["automatico", "regra", "9", &eu]);
+    assert!(rodar(&["vigiar", "--uma-vez"]).1.contains("não tem o perfil 9"));
+    assert!(rodar(&["automatico", "remover", &eu]).0);
+    let (certo, texto) = rodar(&["automatico", "remover", &eu]);
+    assert!(!certo && texto.contains("não há regra"), "{texto}");
+    std::fs::remove_dir_all(&pasta).ok();
+}

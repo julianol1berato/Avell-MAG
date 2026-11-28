@@ -816,6 +816,37 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     std::fs::remove_dir_all(&pasta).ok();
     pausa(400).await;
 
+    // ----- troca automática de perfil: liga, cria uma regra, desliga -----
+    // só com o teclado simulado, que roda com uma pasta de ajustes própria: no teclado de verdade
+    // o teste mexeria nos ajustes de quem o roda
+    if mag82::simulado::ligado() {
+        use mag82::automatico::{caminho_do_inicio, Ajustes};
+        let a = &ui.disp.auto;
+        ui.pilha.set_visible_child_name("disp");
+        a.linha.set_enable_expansion(true);
+        a.linha.set_expanded(true);
+        pausa(300).await;
+        a.programa.set_selected(0);
+        a.perfil.set_selected(1);
+        ui.adicionar_regra();
+        pausa(300).await;
+        fotografar(ui, prefixo, "disp", "disp-automatico").await;
+        let ajustes = Ajustes::ler();
+        println!(
+            "troca automática ligada: ajuste={} regras={} na tela={} perfil da regra={:?} inicia com a sessão={}",
+            ajustes.ligado,
+            ajustes.regras.len(),
+            a.quantas_regras(),
+            ajustes.regras.first().map(|r| r.perfil),
+            caminho_do_inicio().exists()
+        );
+        a.linha.set_enable_expansion(false);
+        pausa(300).await;
+        println!("troca automática desligada: ajuste={} inicia com a sessão={}", Ajustes::ler().ligado, caminho_do_inicio().exists());
+        Ajustes::default().salvar().ok();
+        ui.limpar_aviso();
+    }
+
     // ----- teclado some e volta: reconecta sozinho -----
     ui.sem_teclado("desconexão simulada");
     println!("sem teclado: tela={}", ui.tela());
