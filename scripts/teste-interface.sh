@@ -73,6 +73,9 @@ confere "ao voltar para a janela, a tela mostra: 0x2192"
 confere "desfeito por fora: 0x0014; sem mudança, a configuração fica igual=true"
 confere "depois da falha: tela=ok brilho voltou=true edição preservada=true"
 confere "reconectou sozinho: tela=ok dados=true"
+# digitar os passos de uma macro: toques rápidos viram toques, as pausas são opcionais, nada é gravado
+confere 'digitar passos: com pausas="+lctrl 90ms c 120ms -lctrl 690ms v 60ms" sem pausas="+lctrl c -lctrl v"'
+confere "digitar passos: entraram na lista=4 diálogo fechado=true nada gravado=true"
 # predefinições de pares e de teclas avançadas: montam a tela e não gravam
 confere "predefinição de par 0: teclas certas=true modo=0 dá para aplicar=true"
 confere "predefinição de par 1: teclas certas=true modo=0 dá para aplicar=true"

@@ -104,7 +104,8 @@ E a interface só mostra o que o teclado confirmou.
 
 E mais:
 
-- **Macros**: sequências de teclas que o teclado executa sozinho, ligadas a qualquer tecla.
+- **Macros**: sequências de teclas que o teclado executa sozinho, ligadas a qualquer tecla. Monte
+  os passos um a um ou digite a sequência e deixe o programa captar, com ou sem as pausas.
 - **Cópia da configuração**: salve o perfil inteiro num arquivo e traga de volta quando quiser, para
   guardar, copiar para outro perfil ou compartilhar. Veja [como funciona](#cópia-da-configuração).
 - **Curso ao vivo**: veja na tela o quanto a tecla afunda e onde cai o ponto de atuação.

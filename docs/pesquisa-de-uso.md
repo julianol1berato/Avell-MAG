@@ -26,7 +26,7 @@ decidir o que entra no [TODO.md](../TODO.md).
 | 3 | Trocar de perfil sozinho conforme o programa ou jogo aberto | forte | **Falta** |
 | 4 | Detecção da janela ativa não funciona no Wayland | algumas | Obstáculo para o item 3 |
 | 5 | Macros gravadas no teclado, sem programa rodando | forte | **Tem**: as 8 macros ficam no teclado |
-| 6 | Gravar a macro digitando, em vez de montar passo a passo | indireta | **Falta** (já estava no TODO) |
+| 6 | Gravar a macro digitando, em vez de montar passo a passo | indireta | **Tem**: os passos podem ser digitados, com ou sem as pausas, e conferidos antes de gravar |
 | 7 | A tela mostra um estado diferente do que o teclado está fazendo | várias | **Melhora neste PR**: a tela é conferida ao voltar para a janela. Antes, só perfil trocado por fora era percebido |
 | 8 | Alterações não ficam gravadas; sincronização trava | forte na Razer, isolada nas outras | **Tem**: toda gravação é lida de volta, e a tela só mostra o que o teclado confirmou |
 | 9 | O programa não reconhece o teclado | forte | **Tem em parte**: reconecta sozinho e explica a falta de permissão. Só procura o MAG82 |
@@ -60,7 +60,8 @@ decidir o que entra no [TODO.md](../TODO.md).
 2. ~~**Predefinições de teclas avançadas**~~ Feito: SOCD em A/D e W/S, dupla função no Caps Lock e
    dois exemplos no W. A predefinição escolhe as teclas e preenche a tela; a gravação continua
    sendo um clique em Aplicar, para o usuário ver o que vai mudar.
-3. **Gravar macro digitando.**
+3. ~~**Gravar macro digitando.**~~ Feito: um diálogo capta as teclas apertadas e soltas, com as
+   pausas se o usuário quiser, e os passos entram na lista para conferir antes de gravar.
 4. **Troca automática de perfil por programa.** É o mais pedido depois do backup, mas o mais
    caro: precisa de algo rodando em segundo plano e, no Wayland, não há forma geral de saber qual
    janela está ativa. Fica por último, e opcional.
