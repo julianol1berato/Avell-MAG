@@ -1203,8 +1203,12 @@ pub fn serve_em_avancada(codigo: u16) -> bool {
 /// Verdadeiro se o teclado aceita gravar a função numa tecla avançada (ver
 /// [`serve_em_avancada`]): inclui as teclas com modificadores, que ele grava mas não envia como
 /// combinação. É o que o teclado simulado imita.
-pub fn teclado_aceita_em_avancada(codigo: u16) -> bool {
-    codigo < 0x1000
+///
+/// `tipo` é o número do tipo no teclado (1 DKS, 2 multiponto, 3 dupla função, 4 contínuo, 5 ao
+/// soltar, 6 SOCD, 7 RS). O DKS é o único que também aceita gravar as funções de mouse; não se
+/// sabe se elas funcionam ali, e o programa não as oferece.
+pub fn teclado_aceita_em_avancada(tipo: u8, codigo: u16) -> bool {
+    codigo < 0x1000 || (tipo == 1 && (0x4100..=0x4BFF).contains(&codigo))
 }
 
 /// Nome de uma função para mensagens: o do catálogo de especiais ou o da tecla.
@@ -1222,12 +1226,16 @@ fn nome_da_funcao(codigo: u16) -> String {
 /// [`serve_em_avancada`]). `onde` completa a frase: "no multiponto", "na dupla função".
 fn validar_funcoes(onde: &str, codigos: &[u16]) -> Resultado<()> {
     match codigos.iter().find(|c| !serve_em_avancada(**c)) {
-        // o teclado grava, mas ao digitar sai só a tecla
-        Some(codigo) if teclado_aceita_em_avancada(*codigo) => Err(Erro::Invalido(format!(
-            "\"{}\" não pode ser usada {onde}: numa função avançada o teclado envia só a tecla, sem Ctrl, Shift, \
-             Alt ou Super",
-            nome_da_funcao(*codigo)
-        ))),
+        // modificadores sem a marca de combinação: o teclado grava, mas ao digitar sai só a tecla
+        Some(codigo) if (0x100..0x1000).contains(codigo) => {
+            let mods: Vec<&str> = MODIFICADORES.iter().filter(|(bit, _)| codigo & bit != 0).map(|(_, n)| *n).collect();
+            Err(Erro::Invalido(format!(
+                "\"{} + {}\" não pode ser usada {onde}: numa função avançada o teclado envia só a tecla, sem Ctrl, \
+                 Shift, Alt ou Super",
+                mods.join(" + "),
+                nome_tecla(codigo & 0xFF)
+            )))
+        }
         Some(codigo) => Err(Erro::Invalido(format!(
             "\"{}\" não pode ser usada {onde}: funções avançadas só aceitam teclas comuns (letras, números, \
              F1 a F12, setas, Ctrl, Shift, Alt…)",
@@ -1888,7 +1896,11 @@ const NOMES_FIXOS: &[(u16, &str)] = &[
     (0x4F, "direita"), (0x50, "esquerda"), (0x51, "baixo"), (0x52, "cima"), (0x46, "prtsc"),
     (0x47, "scrlk"), (0x48, "pause"), (0x65, "menu"),
     (0xE0, "lctrl"), (0xE1, "lshift"), (0xE2, "lalt"), (0xE3, "win"),
-    (0xE4, "rctrl"), (0xE5, "rshift"), (0xE6, "ralt"), (0xF101, "fn"),
+    (0xE4, "rctrl"), (0xE5, "rshift"), (0xE6, "ralt"), (0xE7, "rwin"), (0xF101, "fn"),
+    // teclado numérico e teclas que o MAG82 não tem, mas que uma tecla dele pode enviar
+    (0x53, "numlock"), (0x54, "num/"), (0x55, "num*"), (0x56, "num-"), (0x57, "num+"), (0x58, "numenter"),
+    (0x63, "num."), (0x67, "num="), (0x32, "iso#"), (0x66, "power"),
+    (0x8A, "henkan"), (0x8B, "muhenkan"), (0x90, "hangul"), (0x91, "hanja"), (0x92, "katakana"),
 ];
 
 /// Todas as funções de tecla conhecidas: (usage HID, nome), com as legendas do layout ABNT2.
@@ -1897,6 +1909,9 @@ pub fn funcoes() -> Vec<(u16, String)> {
     lista.extend((0..26u16).map(|i| (0x04 + i, char::from(b'a' + i as u8).to_string())));
     lista.extend((0..10u16).map(|i| (0x1E + i, ((i + 1) % 10).to_string())));
     lista.extend((0..12u16).map(|i| (0x3A + i, format!("f{}", i + 1))));
+    lista.extend((0..12u16).map(|i| (0x68 + i, format!("f{}", i + 13))));
+    // no teclado numérico o 1 vem primeiro e o 0 por último
+    lista.extend((0..10u16).map(|i| (0x59 + i, format!("num{}", (i + 1) % 10))));
     lista
 }
 
@@ -1904,7 +1919,44 @@ pub fn nome_tecla(codigo: u16) -> String {
     if let Some(indice) = macro_do_codigo(codigo) {
         return format!("macro{}", indice + 1);
     }
-    funcoes().into_iter().find(|(c, _)| *c == codigo).map(|(_, n)| n).unwrap_or_else(|| format!("0x{codigo:04x}"))
+    if let Some((_, nome)) = funcoes().into_iter().find(|(c, _)| *c == codigo) {
+        return nome;
+    }
+    // tecla com modificadores: "super+d"; função especial: o nome dela em uma palavra só
+    if let Some((modificadores, tecla)) = combinacao(codigo) {
+        let mods: Vec<String> = modificadores.iter().map(|m| m.to_lowercase()).collect();
+        return format!("{}+{}", mods.join("+"), nome_tecla(tecla));
+    }
+    match especial(codigo) {
+        // as reservadas não são oferecidas e não têm nome próprio: aparecem pelo código
+        Some(e) if codigo != 0 && e.familia != Familia::Reservada => apelido(e.nome),
+        _ => format!("0x{codigo:04x}"),
+    }
+}
+
+/// O nome de uma função especial escrito para a linha de comando: minúsculas, sem acentos, com
+/// hífens no lugar dos espaços e sem o que vem entre parênteses.
+/// "Luz das teclas: próximo efeito" vira `luz-das-teclas-proximo-efeito`.
+pub fn apelido(nome: &str) -> String {
+    let sem_parenteses = nome.split('(').next().unwrap_or(nome);
+    let mut saida = String::new();
+    for letra in sem_parenteses.to_lowercase().chars() {
+        let simples = match letra {
+            'á' | 'à' | 'â' | 'ã' => 'a',
+            'é' | 'ê' => 'e',
+            'í' => 'i',
+            'ó' | 'ô' | 'õ' => 'o',
+            'ú' => 'u',
+            'ç' => 'c',
+            outra => outra,
+        };
+        if simples.is_ascii_alphanumeric() {
+            saida.push(simples);
+        } else if !saida.ends_with('-') {
+            saida.push('-');
+        }
+    }
+    saida.trim_matches('-').to_string()
 }
 
 /// Família de uma função especial, para agrupar nas listas.
@@ -1912,6 +1964,10 @@ pub fn nome_tecla(codigo: u16) -> String {
 pub enum Familia {
     /// Dispara uma macro gravada no teclado.
     Macro,
+    /// Faz o papel do mouse: botões, movimento e roda.
+    Mouse,
+    /// Combinação de teclas pronta, como Super + D.
+    Atalho,
     Multimidia,
     LuzTeclas,
     LuzLateral,
@@ -1976,6 +2032,21 @@ pub const ESPECIAIS: &[Especial] = &[
     esp(0xF207, "Mudar para o perfil 3", "Perf.3", Familia::Teclado),
     esp(0xF208, "Mudar para o perfil 4", "Perf.4", Familia::Teclado),
     esp(0xF209, "Bloquear a tecla Super (Windows)", "Trava", Familia::Teclado),
+    esp(0x4100, "Mouse: botão esquerdo", "M.esq", Familia::Mouse),
+    esp(0x4200, "Mouse: botão direito", "M.dir", Familia::Mouse),
+    esp(0x4300, "Mouse: botão do meio", "M.meio", Familia::Mouse),
+    esp(0x4400, "Mouse: botão de avançar", "M.av", Familia::Mouse),
+    esp(0x4500, "Mouse: botão de voltar", "M.volta", Familia::Mouse),
+    esp(0x4600, "Mouse: mover para a esquerda", "M.←", Familia::Mouse),
+    esp(0x4700, "Mouse: mover para a direita", "M.→", Familia::Mouse),
+    esp(0x4800, "Mouse: mover para cima", "M.↑", Familia::Mouse),
+    esp(0x4900, "Mouse: mover para baixo", "M.↓", Familia::Mouse),
+    esp(0x4A01, "Mouse: roda para a frente", "Roda↑", Familia::Mouse),
+    esp(0x4B01, "Mouse: roda para trás", "Roda↓", Familia::Mouse),
+    esp(0x1807, "Mostrar a área de trabalho (Super + D)", "⊞+D", Familia::Atalho),
+    esp(0x1808, "Abrir os arquivos (Super + E)", "⊞+E", Familia::Atalho),
+    esp(0x1815, "Executar um comando (Super + R)", "⊞+R", Familia::Atalho),
+    esp(0x1329, "Gerenciador de tarefas (Ctrl + Shift + Esc)", "C+S+Esc", Familia::Atalho),
     esp(MACRO_BASE + 0, "Macro 1", "M1", Familia::Macro),
     esp(MACRO_BASE + 1, "Macro 2", "M2", Familia::Macro),
     esp(MACRO_BASE + 2, "Macro 3", "M3", Familia::Macro),
@@ -2004,16 +2075,42 @@ pub fn especial(codigo: u16) -> Option<&'static Especial> {
     ESPECIAIS.iter().find(|e| e.codigo == codigo)
 }
 
-/// Decompõe um código de "tecla com modificadores" (ex.: Super+D): devolve os nomes dos
-/// modificadores e o código da tecla. O byte alto traz os modificadores (1 Ctrl, 2 Shift, 4 Alt,
-/// 8 Super; 16 marca o lado direito) e o baixo, a tecla.
+/// Marca, no byte alto do código, de que a função é uma tecla com modificadores.
+const COM_MODIFICADORES: u16 = 0x1000;
+/// Os modificadores de uma combinação, com o bit de cada um no byte alto do código.
+const MODIFICADORES: [(u16, &str); 4] = [(0x0100, "Ctrl"), (0x0200, "Shift"), (0x0400, "Alt"), (0x0800, "Super")];
+
+/// Decompõe um código de "tecla com modificadores" (ex.: Super + D = `0x1807`): devolve os nomes
+/// dos modificadores e o código da tecla.
+///
+/// O byte alto é `0x10` mais os modificadores (1 Ctrl, 2 Shift, 4 Alt, 8 Super) e o baixo, a
+/// tecla. Sem o `0x10` o código não é uma combinação: o teclado até grava `0x0107`, mas envia só
+/// a tecla (conferido digitando). É assim que o configurador oficial monta os atalhos dele, e é o
+/// formato do Super + D que vem de fábrica em Fn + F4.
 pub fn combinacao(codigo: u16) -> Option<(Vec<&'static str>, u16)> {
-    let (mods, tecla) = ((codigo >> 8) as u8, codigo & 0xFF);
-    if mods == 0 || mods > 0x1F || mods & 0x0F == 0 || !funcoes().iter().any(|(c, _)| *c == tecla) {
+    let tecla = codigo & 0xFF;
+    let mods = codigo & 0x0F00;
+    if codigo & 0xF000 != COM_MODIFICADORES || mods == 0 || !funcoes().iter().any(|(c, _)| *c == tecla) {
         return None;
     }
-    let nomes = [(1, "Ctrl"), (2, "Shift"), (4, "Alt"), (8, "Super")];
-    Some((nomes.iter().filter(|(bit, _)| mods & bit != 0).map(|(_, n)| *n).collect(), tecla))
+    Some((MODIFICADORES.iter().filter(|(bit, _)| mods & bit != 0).map(|(_, n)| *n).collect(), tecla))
+}
+
+/// Monta o código de uma tecla com modificadores a partir de um texto como `ctrl+shift+esc`.
+/// `None` se não houver modificador, se algum nome não existir ou se a tecla não for comum.
+pub fn codigo_de_combinacao(texto: &str) -> Option<u16> {
+    let mut partes: Vec<&str> = texto.split('+').collect();
+    let tecla = partes.pop().filter(|t| !t.is_empty())?;
+    if partes.is_empty() {
+        return None;
+    }
+    let mut codigo = COM_MODIFICADORES;
+    for parte in partes {
+        let (bit, _) = MODIFICADORES.iter().find(|(_, nome)| nome.eq_ignore_ascii_case(parte) || (parte == "win" && *nome == "Super"))?;
+        codigo |= bit;
+    }
+    let (tecla, _) = funcoes().into_iter().find(|(c, n)| n == tecla && *c < 0x100)?;
+    Some(codigo | tecla)
 }
 
 /// Aceita um nome de tecla (`caps`, `w`) ou um código (`0x39`).
@@ -2024,6 +2121,16 @@ pub fn codigo_tecla(nome: &str) -> Option<u16> {
     }
     if let Some(n) = nome.strip_prefix("macro").and_then(|n| n.parse::<u8>().ok()) {
         return (1..=MACROS_MAX).contains(&n).then(|| codigo_da_macro(n - 1));
+    }
+    // "+" sozinho é uma tecla do teclado numérico ("num+"); com algo antes, é uma combinação
+    if nome.contains('+') && !nome.ends_with("num+") || nome.matches('+').count() > 1 {
+        if let Some(codigo) = codigo_de_combinacao(&nome) {
+            return Some(codigo);
+        }
+    }
+    let nomeavel = |e: &&Especial| e.codigo != 0 && !matches!(e.familia, Familia::Macro | Familia::Reservada);
+    if let Some(e) = ESPECIAIS.iter().filter(nomeavel).find(|e| apelido(e.nome) == nome) {
+        return Some(e.codigo);
     }
     funcoes().into_iter().find(|(_, n)| *n == nome).map(|(c, _)| c)
 }
@@ -2258,9 +2365,11 @@ mod testes {
         }
         // tecla com modificadores: o teclado grava, mas envia só a tecla; não serve
         assert!(!serve_em_avancada(0x0107) && !serve_em_avancada(0x0F04));
-        assert!(teclado_aceita_em_avancada(0x0107) && teclado_aceita_em_avancada(0x0F04));
+        assert!(teclado_aceita_em_avancada(2, 0x0107) && teclado_aceita_em_avancada(2, 0x0F04));
         // o que o teclado recusa: modificadores com o bit 0x10 e as funções especiais
-        assert!(!teclado_aceita_em_avancada(0x1004) && !teclado_aceita_em_avancada(0x1F04) && !serve_em_avancada(TECLA_FN));
+        assert!(!teclado_aceita_em_avancada(2, 0x1004) && !teclado_aceita_em_avancada(2, 0x1F04) && !serve_em_avancada(TECLA_FN));
+        // as funções de mouse o teclado só deixa gravar no DKS; o programa não as oferece em nenhum
+        assert!(teclado_aceita_em_avancada(1, 0x4100) && !teclado_aceita_em_avancada(2, 0x4100) && !serve_em_avancada(0x4100));
         for e in ESPECIAIS.iter().filter(|e| e.codigo != 0) {
             assert!(!serve_em_avancada(e.codigo), "{}", e.nome);
         }
@@ -2288,6 +2397,36 @@ mod testes {
     /// nenhuma função recusada pelo teclado pode passar, e nenhuma tecla comum aceita pode ser
     /// barrada. As teclas com modificadores o teclado aceita, mas não servem (ele envia só a tecla).
     #[test]
+    fn combinacoes_precisam_da_marca() {
+        assert_eq!(combinacao(0x1807), Some((vec!["Super"], 0x07)));
+        assert_eq!(combinacao(0x1329), Some((vec!["Ctrl", "Shift"], 0x29)));
+        assert_eq!(combinacao(0x0107), None, "sem a marca 0x10 não é combinação: o teclado envia só a tecla");
+        assert_eq!(codigo_de_combinacao("ctrl+shift+esc"), Some(0x1329));
+        assert_eq!(codigo_de_combinacao("super+d"), Some(0x1807));
+        assert_eq!(codigo_de_combinacao("win+e"), Some(0x1808));
+        assert_eq!(codigo_de_combinacao("d"), None);
+        assert_eq!(codigo_de_combinacao("ctrl+naoexiste"), None);
+        assert_eq!(codigo_de_combinacao("ctrl+abrir-a-calculadora"), None, "só tecla comum leva modificador");
+    }
+
+    #[test]
+    fn nomes_da_linha_de_comando_vao_e_voltam() {
+        assert_eq!(apelido("Luz das teclas: próximo efeito"), "luz-das-teclas-proximo-efeito");
+        assert_eq!(nome_tecla(0x2192), "abrir-a-calculadora");
+        assert_eq!(nome_tecla(0x1807), "super+d");
+        assert_eq!(nome_tecla(0x57), "num+");
+        assert_eq!(nome_tecla(0x62), "num0");
+        assert_eq!(nome_tecla(0x68), "f13");
+        // todo código do catálogo tem um nome que a linha de comando lê de volta como o mesmo código
+        for (codigo, _) in funcoes() {
+            assert_eq!(codigo_tecla(&nome_tecla(codigo)), Some(codigo), "{codigo:#06x}");
+        }
+        for e in ESPECIAIS.iter().filter(|e| e.codigo != 0) {
+            assert_eq!(codigo_tecla(&nome_tecla(e.codigo)), Some(e.codigo), "{} ({:#06x})", e.nome, e.codigo);
+        }
+    }
+
+    #[test]
     fn tabela_do_teclado() {
         let mut medidas = 0;
         for linha in include_str!("avancadas-medidas.txt").lines().filter(|l| !l.starts_with('#') && !l.trim().is_empty()) {
@@ -2299,7 +2438,8 @@ mod testes {
                 "recusado" => false,
                 _ => panic!("resposta desconhecida: {linha}"),
             };
-            assert_eq!(teclado_aceita_em_avancada(codigo), aceito, "o programa e o teclado discordam: {linha}");
+            let numero = ["dks", "mpt", "mt", "tgl", "end", "socd", "rs"].iter().position(|t| *t == tipo).unwrap() as u8 + 1;
+            assert_eq!(teclado_aceita_em_avancada(numero, codigo), aceito, "o programa e o teclado discordam: {linha}");
             assert_eq!(serve_em_avancada(codigo), aceito && codigo < 0x100, "regra errada para: {linha}");
             medidas += 1;
         }

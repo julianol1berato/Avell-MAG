@@ -263,7 +263,10 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     println!("função W: {}", mag82::nome_tecla(ui.d.borrow().as_ref().unwrap().atual[&W]));
     // a tecla remapeada fica marcada em todos os modos, não só em Funções
     println!("W remapeada, dica da tecla: {:?}", t.botoes.borrow()[&W].tooltip_text().map(|d| d.contains("Remapeada para A")));
-    // função com desenho (calculadora no Insert, volume no End): o desenho aparece na tecla
+    // função com desenho (calculadora no Insert, volume no End): o desenho aparece na tecla.
+    // Guarda o que as duas teclas faziam antes, para devolver igual: o usuário pode tê-las mudado.
+    let antes_das_duas: Vec<(Pos, u16)> =
+        [(1, 14), (2, 14)].into_iter().map(|pos| (pos, ui.d.borrow().as_ref().unwrap().atual[&pos])).collect();
     for (pos, codigo) in [((1, 14), 0x2192u16), ((2, 14), 0x20E9)] {
         ui.selecionar(&[pos]);
         let posicao = t.funcoes.iter().position(|(c, _)| *c == codigo).unwrap();
@@ -282,9 +285,16 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     ui.selecionar(&[]);
     fotografar(ui, prefixo, "teclas", "teclas-remapeada-em-atuacao").await;
     ui.mudar_modo(Modo::Remapear);
-    for pos in [(1, 14), (2, 14)] {
+    for (pos, codigo) in antes_das_duas {
         ui.selecionar(&[pos]);
-        ui.aplicar_funcao(true);
+        match t.funcoes.iter().position(|(c, _)| *c == codigo) {
+            Some(posicao) => {
+                t.funcao.set_selected(posicao as u32);
+                ui.aplicar_funcao(false);
+            }
+            // função que a lista não oferece: sobra o padrão de fábrica
+            None => ui.aplicar_funcao(true),
+        }
         ocioso(ui).await;
     }
     ui.selecionar(&[W]);

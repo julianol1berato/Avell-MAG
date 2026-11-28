@@ -227,7 +227,7 @@ fn funcoes_servem(corpo: &[u8]) -> bool {
     };
     (0..quantas).all(|i| {
         let em = inicio + 2 * i;
-        corpo.get(em..em + 2).map_or(true, |c| crate::teclado_aceita_em_avancada(u16::from_le_bytes([c[0], c[1]])))
+        corpo.get(em..em + 2).map_or(true, |c| crate::teclado_aceita_em_avancada(corpo[0], u16::from_le_bytes([c[0], c[1]])))
     })
 }
 

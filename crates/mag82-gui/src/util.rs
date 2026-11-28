@@ -32,8 +32,19 @@ pub fn rotulo(nome: &str) -> String {
         "scrlk" => "ScrLk",
         "pause" => "Pause",
         "menu" => "Menu",
+        "rwin" => "Super",
+        "numlock" => "NumLk",
+        "numenter" => "N.Ent",
+        "iso#" => "#",
+        "power" => "Power",
         _ => "",
     };
+    // teclado numérico: "N" e o que a tecla mostra ("N7", "N+")
+    if fixo.is_empty() {
+        if let Some(resto) = nome.strip_prefix("num") {
+            return format!("N{resto}");
+        }
+    }
     if !fixo.is_empty() {
         fixo.to_string()
     } else if nome.chars().count() <= 3 {
@@ -65,6 +76,18 @@ pub fn rotulo_longo(nome: &str) -> String {
         "caps" => "Caps Lock".into(),
         "scrlk" => "Scroll Lock".into(),
         "menu" => "Menu de contexto".into(),
+        "win" => "Super esquerdo".into(),
+        "rwin" => "Super direito".into(),
+        "numlock" => "Num Lock".into(),
+        "numenter" => "Enter do teclado numérico".into(),
+        "iso#" => "# (teclado ISO)".into(),
+        "power" => "Power (desligar)".into(),
+        "henkan" => "Henkan (teclado japonês)".into(),
+        "muhenkan" => "Muhenkan (teclado japonês)".into(),
+        "katakana" => "Katakana (teclado japonês)".into(),
+        "hangul" => "Hangul (teclado coreano)".into(),
+        "hanja" => "Hanja (teclado coreano)".into(),
+        outro if outro.starts_with("num") => format!("{} do teclado numérico", &outro[3..]),
         outro => rotulo(outro),
     }
 }
@@ -89,6 +112,40 @@ pub fn descrever_funcao(codigo: u16) -> String {
 /// versão simbólica (um traço só, na cor do texto). `None` para as funções sem ícone óbvio
 /// (luzes, perfis, macros) e quando o tema instalado não tem o ícone; aí vale o texto de
 /// [`rotulo_funcao`].
+/// O desenho de uma função, pronto para pôr na tecla, ou `None` se ela não tem um.
+///
+/// O ícone vem do tema Adwaita, que acompanha o GTK, e não do tema de ícones do sistema: cada
+/// tema desenha (ou deixa de desenhar) esses ícones do seu jeito, e num deles a calculadora
+/// saía em branco. Se o Adwaita não tiver o ícone, vale o do tema do sistema; sem nenhum, o
+/// texto.
+pub fn desenho_da_funcao(codigo: u16, tamanho: i32) -> Option<gtk::Image> {
+    thread_local! {
+        static ADWAITA: gtk::IconTheme = {
+            let tema = gtk::IconTheme::new();
+            tema.set_theme_name(Some("Adwaita"));
+            tema
+        };
+    }
+    let nome = icone_da_funcao(codigo)?;
+    let do_adwaita = ADWAITA.with(|tema| {
+        tema.has_icon(nome).then(|| {
+            tema.lookup_icon(nome, &[], tamanho, 1, gtk::TextDirection::None, gtk::IconLookupFlags::FORCE_SYMBOLIC)
+        })
+    });
+    let imagem = match do_adwaita {
+        Some(desenho) => gtk::Image::from_paintable(Some(&desenho)),
+        None => {
+            let do_sistema = gdk::Display::default().map(|tela| gtk::IconTheme::for_display(&tela))?;
+            if !do_sistema.has_icon(nome) {
+                return None;
+            }
+            gtk::Image::from_icon_name(nome)
+        }
+    };
+    imagem.set_pixel_size(tamanho);
+    Some(imagem)
+}
+
 pub fn icone_da_funcao(codigo: u16) -> Option<&'static str> {
     let nome = match codigo {
         0x206F => "display-brightness-symbolic",
@@ -109,6 +166,11 @@ pub fn icone_da_funcao(codigo: u16) -> Option<&'static str> {
         0x2224 => "go-previous-symbolic",
         0xF209 => "changes-prevent-symbolic",
         0xFF00 => "focus-windows-symbolic",
+        0x4100..=0x4BFF => "input-mouse-symbolic",
+        0x1807 => "user-desktop-symbolic",
+        0x1808 => "system-file-manager-symbolic",
+        0x1815 => "system-run-symbolic",
+        0x1329 => "view-list-symbolic",
         _ => return None,
     };
     let tela = gtk::gdk::Display::default()?;

@@ -756,9 +756,7 @@ impl Ui {
             };
             // o desenho da função, quando ela tem um: mais fácil de reconhecer que a sigla
             let tamanho = (t.u.get() * 0.3).clamp(10.0, 16.0) as i32;
-            let desenho = |codigo: u16| {
-                icone_da_funcao(codigo).map(|nome| gtk::Image::builder().icon_name(nome).pixel_size(tamanho).build())
-            };
+            let desenho = |codigo: u16| crate::util::desenho_da_funcao(codigo, tamanho);
             let caixa = gtk::Box::builder().orientation(gtk::Orientation::Vertical).valign(gtk::Align::Center).build();
             // a tecla remapeada para uma função com desenho mostra o desenho ao lado do nome, em
             // todos os modos
