@@ -10,7 +10,8 @@
 
 <!-- Comandos que você rodou e o resultado. -->
 
-- [ ] `cargo test` passou
+- [ ] `scripts/verificar.sh` passou no meu computador (compila, testa, exercita a interface e gera os pacotes)
+- [ ] A mudança de comportamento tem teste novo, ou não muda comportamento
 - [ ] Testei no teclado de verdade (firmware: ___ / distribuição: ___)
 - [ ] `scripts/teste-interface.sh` passou (teclado simulado)
 - [ ] Não tenho o teclado; testei só com o simulado
