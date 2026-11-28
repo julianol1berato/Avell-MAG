@@ -167,6 +167,8 @@ enum Comando {
     },
     /// Lista todas as teclas com função avançada (SOCD, RS, DKS, MPT, MT, TGL e END)
     Avancadas,
+    /// Lista todas as funções que uma tecla pode enviar, com o nome usado em remapear e atalhos
+    Funcoes,
     /// Lista as interfaces USB do teclado
     Info,
     /// Escreve a página de manual (man) do programa; usado no empacotamento
@@ -437,6 +439,22 @@ fn executar(args: Args) -> Resultado<()> {
             .render(&mut std::io::stdout())
             .map_err(|e| Erro::Invalido(format!("não foi possível escrever a página de manual: {e}")));
     }
+    if let Comando::Funcoes = args.comando {
+        let mut teclas = mag82::funcoes();
+        teclas.retain(|(c, _)| *c != mag82::TECLA_FN);
+        teclas.sort_by(|a, b| a.1.cmp(&b.1));
+        println!("Teclas comuns (servem em remapear, atalhos, macros e teclas avançadas):");
+        let nomes: Vec<String> = teclas.into_iter().map(|(_, n)| n).collect();
+        for linha in nomes.chunks(12) {
+            println!("  {}", linha.join("  "));
+        }
+        println!("\nTecla com modificadores (só em remapear e atalhos): junte com +, ex.: ctrl+c  ctrl+shift+esc  super+d");
+        println!("\nFunções especiais (só em remapear e atalhos):");
+        for e in mag82::ESPECIAIS.iter().filter(|e| e.codigo != 0 && e.familia != mag82::Familia::Reservada) {
+            println!("  {:<38} {}", mag82::nome_tecla(e.codigo), e.nome);
+        }
+        return Ok(());
+    }
     if let Comando::Registro = args.comando {
         let caminho = mag82::registro::Registro::caminho_padrao("calibracao.log");
         println!("arquivo: {}", caminho.display());
@@ -461,7 +479,7 @@ fn executar(args: Args) -> Resultado<()> {
     let mut t = Teclado::abrir()?;
     t.verboso = args.verboso;
     match args.comando {
-        Comando::Info | Comando::Registro | Comando::Manual => unreachable!(),
+        Comando::Info | Comando::Registro | Comando::Manual | Comando::Funcoes => unreachable!(),
         Comando::Dispositivo => {
             let d = t.dispositivo()?;
             println!("protocolo:  {}", d.protocolo);

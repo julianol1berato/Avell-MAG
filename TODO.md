@@ -20,6 +20,15 @@ de teclados magnéticos mais pedem e o programa ainda não tem.
 
 ## Falta conferir
 
+- [ ] Funções de mouse e atalhos prontos (Super + D, Super + E, Super + R, Ctrl + Shift + Esc)
+      entraram no catálogo a partir do configurador oficial, e o teclado aceita gravá-los numa
+      tecla. Falta conferir, apertando, o que cada um envia. O mesmo vale para as teclas que o
+      MAG82 não tem (teclado numérico, F13 a F24, teclas de teclados japoneses e coreanos).
+- [ ] Tecla com modificadores montada pelo usuário (ex.: Ctrl + C): a linha de comando aceita
+      (`mag82 remapear f9 ctrl+c`); na interface só aparecem os quatro atalhos prontos. Falta um
+      jeito de montar a combinação na tela, e conferir digitando uma combinação que não seja o
+      Super + D de fábrica.
+
 - [ ] Seleção por arrasto e atalhos (Ctrl+A, Esc, F5) não têm teste automático: o autoteste chama
       as ações direto, sem simular mouse nem teclado.
 

@@ -180,6 +180,8 @@ Tudo o que a interface faz também está no terminal:
 mag82 dispositivo                          # firmware e recursos
 mag82 atuacao w a s d --ponto 0.5 --rt on
 mag82 remapear caps lctrl
+mag82 remapear f9 abrir-a-calculadora         # `mag82 funcoes` lista os nomes
+mag82 remapear f10 ctrl+shift+esc             # tecla com modificadores
 mag82 atalhos pgdn home                    # Fn + PgDn passa a ser Home
 mag82 socd a d --modo neutro
 mag82 dks caps --acao lshift:1-3 --acao w:4   # Shift do início até sair do fundo; W ao soltar
@@ -207,6 +209,7 @@ para todas as vagas de cada um:
 | Letras, números, F1 a F12, setas, Enter, Espaço… | sim | sim | sim | sim | sim | sim |
 | Ctrl, Shift, Alt e Super (dos dois lados) | sim | sim | sim | sim | sim | sim |
 | Tecla com Ctrl, Shift, Alt ou Super junto (ex.: Ctrl + D) | não | não | não | não | não | não |
+| Mouse (botões, movimento e roda) | não | não | não | não | não | não |
 | Multimídia (volume, faixas, player, navegador…) | não | não | não | não | não | não |
 | Luz das teclas e luz lateral | não | não | não | não | não | não |
 | Perfis, trava da tecla Super, Alt + Tab | não | não | não | não | não | não |
@@ -219,9 +222,14 @@ As funções que não entram aqui continuam valendo direto na tecla (**Teclas �
 atalhos com Fn. Por isso as listas do modo **Avançada** só mostram teclas comuns, e a linha de
 comando recusa o resto antes de gravar, dizendo qual função não serve.
 
-Uma tecla com modificador junto (Ctrl + D) é um caso à parte: o teclado aceita gravar, mas ao
-digitar envia só a tecla, sem o modificador. O programa recusa para não deixar na tecla uma função
-que parece uma coisa e faz outra. Para ter Ctrl + D numa tecla, use uma macro.
+Uma tecla com modificador junto (Ctrl + D) é um caso à parte. Direto na tecla e nos atalhos com Fn
+ela funciona: é como vem de fábrica o Super + D em Fn + F4, e a linha de comando aceita
+`mag82 remapear f9 ctrl+shift+esc`. Dentro de uma função avançada, não: o teclado recusa a
+combinação e, numa variante do código, até grava, mas ao digitar envia só a tecla. O programa
+recusa as duas, para não deixar na tecla uma função que parece uma coisa e faz outra.
+
+As funções de mouse são o outro caso à parte: o teclado deixa gravá-las no DKS (e só nele), mas
+ninguém conferiu se funcionam ali, então o programa não as oferece em nenhuma função avançada.
 
 A tabela foi medida no teclado (firmware 0.0.2.0), função por função; as respostas estão em
 [`crates/mag82/src/avancadas-medidas.txt`](crates/mag82/src/avancadas-medidas.txt) e os testes
