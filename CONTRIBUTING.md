@@ -36,7 +36,25 @@ Mantenedor: Juliano Liberato ([9level.com.br](https://9level.com.br) ·
    sudo dnf install cargo gtk4-devel libadwaita-devel       # Fedora
    ```
 
-4. **Faça a mudança** e confira localmente:
+4. **Faça a mudança** e confira no seu computador. Os testes de desenvolvimento são sempre feitos
+   na máquina de quem fez o código, antes de enviar; um comando roda tudo:
+
+   ```sh
+   scripts/verificar.sh             # compila, testa, exercita a interface e gera os pacotes
+   scripts/verificar.sh --teclado   # o mesmo, mais o autoteste no teclado de verdade
+   ```
+
+   Ele compila, roda os testes unitários e de integração, exercita todas as telas contra o
+   teclado simulado e gera os pacotes da versão (`.deb`, `.tar.gz` e, onde houver `rpmbuild`,
+   `.rpm`). No fim diz o que foi feito; cole esse resumo no pull request. A esteira de integração
+   repete as conferências depois, numa máquina limpa: ela é a segunda opinião, não o lugar de
+   descobrir que algo quebrou.
+
+   Toda mudança de comportamento vem com o seu teste: unitário, junto do código, para a regra
+   nova; e uma conferência no autoteste da interface (`crates/mag82-gui/src/teste.rs` e
+   `scripts/teste-interface.sh`) quando a mudança aparece na tela.
+
+   As partes, para rodar em separado:
 
    ```sh
    cargo test                   # precisa passar; não usa o teclado
@@ -99,7 +117,7 @@ Todo pull request e todo envio para `main` dispara o fluxo em
 
 | Etapa | Onde roda | O que confere |
 |---|---|---|
-| **Testes** | Ubuntu 24.04 | Compila, roda os testes, confere o que as teclas avançadas aceitam contra as respostas medidas no teclado e exercita a interface inteira contra o teclado simulado |
+| **Testes** | Ubuntu 24.04 | Compila, roda os testes unitários e de integração (e falha se nenhum rodar), confere o que as teclas avançadas aceitam contra as respostas medidas no teclado e exercita a interface inteira contra o teclado simulado |
 | **Pacote .deb** | Ubuntu 24.04 | Gera o `.deb`, instala com `apt` e roda o teste de fumaça como usuário comum |
 | **Pacote .rpm** | Fedora | Gera o `.rpm` (compila e testa de novo), instala com `dnf` e roda o teste de fumaça como usuário comum |
 

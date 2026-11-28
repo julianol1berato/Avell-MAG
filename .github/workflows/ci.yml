@@ -24,8 +24,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Compilar
         run: cargo build --release --locked
-      - name: Testes
-        run: cargo test --release --locked
+      # Os testes de desenvolvimento já foram feitos na máquina de quem fez a mudança
+      # (scripts/verificar.sh); aqui eles rodam de novo, numa máquina limpa.
+      - name: Testes unitários e de integração
+        run: |
+          set -o pipefail
+          cargo test --release --locked 2>&1 | tee testes.txt
+          total=$(grep "^test result: ok" testes.txt | sed 's/.*ok\. \([0-9]*\) passed.*/\1/' | paste -sd+ | bc)
+          echo "testes que passaram: $total"
+          [ "${total:-0}" -gt 0 ] || { echo "nenhum teste rodou"; exit 1; }
       # O que cada tipo de tecla avançada aceita, contra as respostas medidas no teclado de verdade
       # (crates/mag82/src/avancadas-medidas.txt). Já roda nos testes acima; fica à parte para a
       # falha aparecer com nome quando alguém libera uma função que o teclado recusa.
