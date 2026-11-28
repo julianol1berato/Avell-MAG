@@ -216,6 +216,67 @@ pub fn botao(texto: &str, destaque: bool) -> gtk::Button {
     b
 }
 
+/// A linha "Junto com": Ctrl, Shift, Alt e Super apertados junto com a tecla escolhida numa
+/// lista de funções. Só vale para teclas comuns; com outra função a linha fica apagada.
+pub struct Modificadores {
+    pub linha: adw::ActionRow,
+    botoes: [gtk::ToggleButton; 4],
+}
+
+const NOMES_DOS_MODIFICADORES: [&str; 4] = ["Ctrl", "Shift", "Alt", "Super"];
+
+impl Modificadores {
+    pub fn construir() -> Self {
+        let caixa = gtk::Box::builder().css_classes(["linked"]).valign(gtk::Align::Center).build();
+        let botoes = NOMES_DOS_MODIFICADORES.map(|nome| {
+            let b = gtk::ToggleButton::builder().label(nome).build();
+            caixa.append(&b);
+            b
+        });
+        let linha = adw::ActionRow::builder().title("Junto com").build();
+        linha.add_suffix(&caixa);
+        let m = Self { linha, botoes };
+        m.permitir(true);
+        m
+    }
+
+    /// Liga ou apaga a linha conforme a função escolhida aceite modificadores.
+    pub fn permitir(&self, sim: bool) {
+        self.linha.set_sensitive(sim);
+        self.linha.set_subtitle(if sim {
+            "A tecla sai como se estes estivessem apertados (ex.: Ctrl + C)"
+        } else {
+            "Só para teclas comuns: letras, números, F1 a F12, setas…"
+        });
+        if !sim {
+            self.marcar(&[]);
+        }
+    }
+
+    /// Marca os modificadores com estes nomes ("Ctrl", "Shift"…) e desmarca os outros.
+    pub fn marcar(&self, nomes: &[&str]) {
+        for (botao, nome) in self.botoes.iter().zip(NOMES_DOS_MODIFICADORES) {
+            botao.set_active(nomes.contains(&nome));
+        }
+    }
+
+    /// O código a gravar: a tecla sozinha, ou a combinação dela com os modificadores marcados.
+    pub fn codigo(&self, tecla: u16) -> u16 {
+        let marcados: Vec<&str> =
+            self.botoes.iter().zip(NOMES_DOS_MODIFICADORES).filter(|(b, _)| b.is_active()).map(|(_, n)| n).collect();
+        if marcados.is_empty() || !self.linha.is_sensitive() {
+            return tecla;
+        }
+        let texto = format!("{}+{}", marcados.join("+").to_lowercase(), mag82::nome_tecla(tecla));
+        mag82::codigo_de_combinacao(&texto).unwrap_or(tecla)
+    }
+}
+
+/// Verdadeiro se a função é uma tecla comum, que aceita modificadores junto.
+pub fn aceita_modificadores(codigo: u16) -> bool {
+    codigo != 0 && codigo < 0x100 && mag82::funcoes().iter().any(|(c, _)| *c == codigo)
+}
+
 /// Botão "Predefinições", que abre uma lista de exemplos prontos: (título, explicação) de cada
 /// um. Devolve também a lista, para ligar o clique em cada linha.
 pub fn menu_de_predefinicoes(itens: &[(&str, &str)]) -> (gtk::MenuButton, gtk::ListBox) {

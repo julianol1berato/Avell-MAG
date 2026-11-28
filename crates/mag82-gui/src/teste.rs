@@ -89,6 +89,14 @@ async fn fotografar(ui: &Rc<Ui>, prefixo: &str, pagina: &str, nome: &str) {
     }
 }
 
+/// Põe na tecla selecionada a função `codigo`, pela lista e pelos modificadores da tela.
+async fn mostrar_e_aplicar(ui: &Rc<Ui>, codigo: u16) {
+    let t = &ui.tec;
+    let achou = crate::teclas::mostrar_funcao(&t.funcao, &t.fun_mods, &t.funcoes, codigo);
+    ui.aplicar_funcao(!achou);
+    ocioso(ui).await;
+}
+
 /// Fotografa o conteúdo de um menu aberto: ele fica numa superfície à parte e não sai na imagem
 /// da janela.
 async fn fotografar_menu(ui: &Rc<Ui>, menu: &gtk::MenuButton, prefixo: &str, nome: &str) {
@@ -309,19 +317,37 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     ui.mudar_modo(Modo::Remapear);
     for (pos, codigo) in antes_das_duas {
         ui.selecionar(&[pos]);
-        match t.funcoes.iter().position(|(c, _)| *c == codigo) {
-            Some(posicao) => {
-                t.funcao.set_selected(posicao as u32);
-                ui.aplicar_funcao(false);
-            }
+        match crate::teclas::mostrar_funcao(&t.funcao, &t.fun_mods, &t.funcoes, codigo) {
+            true => ui.aplicar_funcao(false),
             // função que a lista não oferece: sobra o padrão de fábrica
-            None => ui.aplicar_funcao(true),
+            false => ui.aplicar_funcao(true),
         }
         ocioso(ui).await;
     }
     ui.selecionar(&[W]);
     ui.aplicar_funcao(true);
     ocioso(ui).await;
+    // tecla com modificadores montada na tela: C com Ctrl e Shift no lugar do W
+    let antes_do_w = ui.d.borrow().as_ref().unwrap().atual[&W];
+    ui.selecionar(&[W]);
+    t.funcao.set_selected(t.funcoes.iter().position(|(c, _)| *c == 0x06).unwrap() as u32);
+    t.fun_mods.marcar(&["Ctrl", "Shift"]);
+    fotografar(ui, prefixo, "teclas", "teclas-com-modificadores").await;
+    ui.aplicar_funcao(false);
+    ocioso(ui).await;
+    let gravado = ui.d.borrow().as_ref().unwrap().atual[&W];
+    // escolher uma função que não é tecla comum apaga a linha e desmarca os modificadores
+    t.funcao.set_selected(t.funcoes.iter().position(|(c, _)| *c == 0x20E9).unwrap() as u32);
+    let apagada = !t.fun_mods.linha.is_sensitive() && t.fun_mods.codigo(0x06) == 0x06;
+    // de volta à tecla, a tela mostra a combinação que está gravada
+    ui.selecionar(&[]);
+    ui.selecionar(&[W]);
+    println!(
+        "combinação no W: gravado={gravado:#06x} ({}) linha apagada com multimídia={apagada} relida na tela={:#06x}",
+        mag82::nome_tecla(gravado),
+        t.fun_mods.codigo(t.funcoes[t.funcao.selected() as usize].0)
+    );
+    mostrar_e_aplicar(ui, antes_do_w).await;
     println!("função W restaurada: {}", mag82::nome_tecla(ui.d.borrow().as_ref().unwrap().atual[&W]));
 
     // ----- atalho de Fn numa tecla que não tem (Q): cria, confere no teclado e desfaz -----
