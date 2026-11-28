@@ -169,6 +169,26 @@ enum Comando {
     Avancadas,
     /// Lista todas as funções que uma tecla pode enviar, com o nome usado em remapear e atalhos
     Funcoes,
+    /// Salva num arquivo a configuração do perfil ativo: atuação, funções das teclas, atalhos
+    /// com Fn, teclas avançadas, macros, luzes e cores fixas
+    ///
+    /// O arquivo é texto simples e pode ser editado. Sem o nome do arquivo, escreve na tela.
+    /// O nome do perfil e a taxa de resposta não entram.
+    Exportar {
+        /// Onde salvar (ex.: meu-teclado.mag82)
+        arquivo: Option<std::path::PathBuf>,
+    },
+    /// Grava no perfil ativo a configuração de um arquivo feito com "mag82 exportar"
+    ///
+    /// Só o que for diferente é gravado. Cada seção do arquivo vale por inteiro, e uma seção
+    /// que não está no arquivo deixa aquela parte do teclado como está. Antes de gravar, a
+    /// configuração atual é guardada num arquivo, para dar para voltar atrás.
+    Importar {
+        arquivo: std::path::PathBuf,
+        /// Só mostra o que mudaria, sem gravar nada
+        #[arg(long)]
+        simular: bool,
+    },
     /// Lista as interfaces USB do teclado
     Info,
     /// Escreve a página de manual (man) do programa; usado no empacotamento
@@ -480,6 +500,37 @@ fn executar(args: Args) -> Resultado<()> {
     t.verboso = args.verboso;
     match args.comando {
         Comando::Info | Comando::Registro | Comando::Manual | Comando::Funcoes => unreachable!(),
+        Comando::Exportar { arquivo } => {
+            let texto = mag82::copia::Copia::ler(&mut t)?.texto();
+            match arquivo {
+                Some(caminho) => {
+                    std::fs::write(&caminho, texto)
+                        .map_err(|e| Erro::Invalido(format!("não foi possível salvar {}: {e}", caminho.display())))?;
+                    println!("configuração salva em {}", caminho.display());
+                }
+                None => print!("{texto}"),
+            }
+        }
+        Comando::Importar { arquivo, simular } => {
+            let texto = std::fs::read_to_string(&arquivo)
+                .map_err(|e| Erro::Invalido(format!("não foi possível ler {}: {e}", arquivo.display())))?;
+            let copia = mag82::copia::Copia::de_texto(&texto)?;
+            let muda = copia.comparar(&mut t)?;
+            if muda.vazio() {
+                println!("o teclado já está igual ao arquivo: nada a gravar");
+                return Ok(());
+            }
+            println!("{}:", if simular { "mudaria" } else { "muda" });
+            for frase in muda.frases() {
+                println!("  {frase}");
+            }
+            if !simular {
+                let guardada = mag82::copia::Copia::guardar_a_atual(&mut t)?;
+                println!("configuração anterior guardada em {}", guardada.display());
+                copia.aplicar(&mut t)?;
+                println!("configuração importada e conferida");
+            }
+        }
         Comando::Dispositivo => {
             let d = t.dispositivo()?;
             println!("protocolo:  {}", d.protocolo);

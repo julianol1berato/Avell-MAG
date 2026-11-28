@@ -175,3 +175,60 @@ fn calibra_ate_o_fim() {
     let texto = ok(&["calibrar"]);
     assert!(texto.contains("83 de 83 teclas calibradas"), "{texto}");
 }
+
+#[test]
+fn exporta_e_importa() {
+    let pasta = std::env::temp_dir().join(format!("mag82-cli-copia-{}", std::process::id()));
+    std::fs::create_dir_all(&pasta).unwrap();
+    let arquivo = pasta.join("teclado.mag82");
+    let caminho = arquivo.to_str().unwrap();
+    assert!(ok(&["exportar", caminho]).contains("configuração salva"));
+    let original = std::fs::read_to_string(&arquivo).unwrap();
+    for secao in ["[atuacao]", "[funcoes]", "[avancadas]", "[macros]", "[luz-teclas]", "[luz-lateral]"] {
+        assert!(original.contains(secao), "falta {secao}:\n{original}");
+    }
+    // o mesmo teclado, o mesmo arquivo: nada a gravar
+    assert!(ok(&["importar", caminho]).contains("nada a gravar"));
+
+    // muda um pouco de cada parte e importa
+    let mut editado = String::new();
+    for linha in original.lines() {
+        let nova = match linha {
+            "[funcoes]" => "[funcoes]\n0 1,14 abrir-a-calculadora\n1 2,1 ctrl+c".to_string(),
+            "[avancadas]" => "[avancadas]\nsocd 3,1 3,3 neutro\nmt 3,0 esc lctrl 250".to_string(),
+            "[macros]" => "[macros]\n2 toque 3 +lctrl c -lctrl 50ms v".to_string(),
+            l if l.starts_with("brilho ") => "brilho 37".to_string(),
+            l if l.starts_with("2,2 ") => "2,2   sim  1.20 1.20 0.50 0.15 0.15 0.00 0.00".to_string(),
+            l => l.to_string(),
+        };
+        editado.push_str(&nova);
+        editado.push('\n');
+    }
+    editado.push_str("fixa 3 ff0000\n"); // a última seção é a da luz lateral
+    std::fs::write(&arquivo, &editado).unwrap();
+    let texto = ok(&["importar", caminho, "--simular"]);
+    assert!(texto.contains("mudaria:") && !texto.contains("importada"), "{texto}");
+    let texto = ok(&["importar", caminho]);
+    for parte in [
+        "atuação de 1 tecla",
+        "função de 2 teclas",
+        "função avançada de 3 teclas",
+        "1 macro",
+        "luz das teclas (efeito, brilho ou paleta)",
+        "luz lateral (efeito, brilho ou paleta)",
+        "cor fixa de 1 LED da lateral",
+        "configuração anterior guardada em",
+        "configuração importada e conferida",
+    ] {
+        assert!(texto.contains(parte), "falta \"{parte}\":\n{texto}");
+    }
+
+    // o que o programa não conhece não é gravado
+    std::fs::write(&arquivo, "mag82-configuracao 1\n[funcoes]\n0 1,14 0xf203\n").unwrap();
+    let (certo, texto) = mag82(&["importar", caminho]);
+    assert!(!certo && texto.contains("não conhece essa função"), "{texto}");
+    std::fs::write(&arquivo, "mag82-configuracao 1\n[avancadas]\nsocd 3,1 9,9 neutro\n").unwrap();
+    let (certo, texto) = mag82(&["importar", caminho]);
+    assert!(!certo && texto.contains("não tem tecla na posição 9,9"), "{texto}");
+    std::fs::remove_dir_all(&pasta).ok();
+}

@@ -643,6 +643,88 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     );
     ui.marcar(false);
 
+    // ----- cópia da configuração: exportar, importar e desfazer -----
+    let pasta = std::env::temp_dir().join(format!("mag82-teste-copia-{}", std::process::id()));
+    std::fs::create_dir_all(&pasta).ok();
+    let arquivo = pasta.join("perfil.mag82");
+    ui.exportar_para(arquivo.clone());
+    ocioso(ui).await;
+    let original = std::fs::read_to_string(&arquivo).unwrap_or_default();
+    let secoes = ["[atuacao]", "[funcoes]", "[avancadas]", "[macros]", "[luz-teclas]"];
+    println!("exportação: arquivo com as seções={}", secoes.iter().all(|s| original.contains(s)));
+    ui.importar_de(&arquivo);
+    ocioso(ui).await;
+    println!("importar o que já está no teclado: sem diálogo={}", ui.disp.dialogo_importar.borrow().is_none());
+    // arquivo editado: liga ou desliga o Rapid Trigger do W e muda o brilho das teclas
+    let (rt0, brilho_antes) = {
+        let dados = ui.d.borrow();
+        let d = dados.as_ref().unwrap();
+        (d.atuacao[&W].rapid_trigger(), d.luz.brilho)
+    };
+    let brilho_novo = if brilho_antes == 40 { 60 } else { 40 };
+    let do_w = format!("{},{} ", W.0, W.1);
+    let (mut trocou_w, mut trocou_brilho) = (false, false);
+    let editado: Vec<String> = original
+        .lines()
+        .map(|linha| {
+            if !trocou_w && linha.starts_with(&do_w) {
+                trocou_w = true;
+                return if rt0 { linha.replacen(" sim ", " nao ", 1) } else { linha.replacen(" nao ", " sim ", 1) };
+            }
+            if !trocou_brilho && linha.starts_with("brilho ") {
+                trocou_brilho = true;
+                return format!("brilho {brilho_novo}");
+            }
+            linha.to_string()
+        })
+        .collect();
+    let outro = pasta.join("editado.mag82");
+    std::fs::write(&outro, editado.join("\n")).ok();
+    let responder = |resposta: &str| {
+        let dialogo = ui.disp.dialogo_importar.borrow_mut().take();
+        if let Some(dialogo) = &dialogo {
+            dialogo.emit_by_name_with_details::<()>("response", glib::Quark::from_str(resposta), &[&resposta]);
+            dialogo.force_close();
+        }
+        dialogo
+    };
+    ui.importar_de(&outro);
+    ocioso(ui).await;
+    fotografar(ui, prefixo, "disp", "importar-confirmacao").await;
+    let corpo = responder("importar").map(|d| d.body().to_string()).unwrap_or_default();
+    ocioso(ui).await;
+    pausa(300).await;
+    ocioso(ui).await;
+    {
+        let dados = ui.d.borrow();
+        let d = dados.as_ref().unwrap();
+        println!(
+            "importação: diálogo lista o que muda={} Rapid Trigger do W trocou={} brilho novo={}",
+            corpo.contains("atuação de 1 tecla") && corpo.contains("luz das teclas"),
+            d.atuacao[&W].rapid_trigger() != rt0,
+            d.luz.brilho == brilho_novo
+        );
+    }
+    // desfazer é importar a configuração que foi guardada antes
+    let guardada = mag82::registro::Registro::caminho_padrao("antes-da-ultima-importacao.mag82");
+    ui.importar_de(&guardada);
+    ocioso(ui).await;
+    pausa(300).await;
+    responder("importar");
+    ocioso(ui).await;
+    pausa(300).await;
+    ocioso(ui).await;
+    println!("importação desfeita: {}", antes == retrato(ui));
+    // o que o programa não conhece não é gravado: o arquivo é recusado antes de qualquer gravação
+    std::fs::write(&outro, "mag82-configuracao 1\n[funcoes]\n0 1,14 0xf203\n").ok();
+    ui.importar_de(&outro);
+    ocioso(ui).await;
+    fotografar(ui, prefixo, "disp", "importar-recusado").await;
+    let recusa = responder("fechar").and_then(|d| d.heading()).map(|t| t.to_string()).unwrap_or_default();
+    println!("arquivo com função desconhecida: recusado={} nada mudou={}", recusa.contains("não pode ser importado"), antes == retrato(ui));
+    std::fs::remove_dir_all(&pasta).ok();
+    pausa(400).await;
+
     // ----- teclado some e volta: reconecta sozinho -----
     ui.sem_teclado("desconexão simulada");
     println!("sem teclado: tela={}", ui.tela());

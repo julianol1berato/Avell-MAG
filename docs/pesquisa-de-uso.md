@@ -21,7 +21,7 @@ decidir o que entra no [TODO.md](../TODO.md).
 
 | # | Reclamação ou pedido | Força nas fontes | No `mag82` hoje |
 |---|---|---|---|
-| 1 | Exportar e importar a configuração em arquivo; backup | várias fontes | **Falta** |
+| 1 | Exportar e importar a configuração em arquivo; backup | várias fontes | **Tem**: o perfil inteiro num arquivo de texto, com conferência do que muda antes de gravar e desfazer |
 | 2 | Atualização de firmware apaga a configuração | algumas | Não se aplica: o programa não atualiza firmware (bloqueado de propósito). Um backup (item 1) cobriria quem atualiza por fora |
 | 3 | Trocar de perfil sozinho conforme o programa ou jogo aberto | forte | **Falta** |
 | 4 | Detecção da janela ativa não funciona no Wayland | algumas | Obstáculo para o item 3 |
@@ -36,9 +36,9 @@ decidir o que entra no [TODO.md](../TODO.md).
 | 13 | Os recursos existem, mas ninguém acha nem entende | forte | **Tem em parte**: cada tipo de tecla avançada tem explicação na tela, e a atuação tem predefinições. **Faltam** predefinições para as teclas avançadas (por exemplo, SOCD em A/D num clique) |
 | 14 | Interface travada, mal traduzida, com enfeites inúteis | várias (reviews) | Interface nativa, em português, sem enfeite. Sem tradução para outros idiomas |
 | 15 | Mais controle de luz por tecla e prévia na tela | forte | **Tem**: cor fixa por tecla e por LED da lateral, com prévia |
-| 16 | Biblioteca ou compartilhamento de perfis | algumas | **Falta**; depende do item 1 |
+| 16 | Biblioteca ou compartilhamento de perfis | algumas | **Tem em parte**: o arquivo exportado pode ser passado adiante; não há biblioteca |
 | 17 | Perfis completos no teclado, troca por atalho, e ver se o SOCD está ligado | algumas | **Tem**: 4 perfis no teclado, função de trocar de perfil para pôr numa tecla, e marca nas teclas que estão num par |
-| 18 | Copiar ajustes de um perfil para outro | fraca | **Falta** |
+| 18 | Copiar ajustes de um perfil para outro | fraca | **Tem**: exportar, trocar de perfil e importar |
 | 19 | Serviço em segundo plano e dependência de site | fraca, opiniões divididas | **Tem**: nada roda em segundo plano e nada depende de site. Vale manter assim se o item 3 for feito |
 | 20 | Atualização de firmware arriscada | algumas | Não se aplica: bloqueada na biblioteca |
 
@@ -53,11 +53,10 @@ decidir o que entra no [TODO.md](../TODO.md).
 
 ## O que falta, em ordem sugerida
 
-1. **Exportar e importar a configuração em arquivo.** É o pedido mais sustentado e o que mais
-   falta. Precisa ser completo (atuação, remapeamento, atalhos Fn, teclas avançadas, macros, luz e
-   cores fixas), porque a reclamação recorrente é justamente a exportação que deixa partes de fora.
-   Um arquivo legível também serve para compartilhar (item 16) e para copiar de um perfil para
-   outro (item 18).
+1. ~~**Exportar e importar a configuração em arquivo.**~~ Feito: o arquivo leva atuação,
+   remapeamento, atalhos Fn, teclas avançadas, macros, luz e cores fixas, porque a reclamação
+   recorrente é justamente a exportação que deixa partes de fora. Sendo legível, também serve para
+   compartilhar (item 16) e para copiar de um perfil para outro (item 18).
 2. **Predefinições de teclas avançadas**: SOCD em A/D e W/S, dupla função no Caps Lock, num clique.
 3. **Gravar macro digitando.**
 4. **Troca automática de perfil por programa.** É o mais pedido depois do backup, mas o mais
