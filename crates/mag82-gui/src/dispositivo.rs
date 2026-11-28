@@ -11,6 +11,7 @@ pub struct PainelDisp {
     linha_site: adw::ActionRow,
     linha_sobre: adw::ActionRow,
     calibrar: gtk::Button,
+    pub auto: crate::automatico::PainelAuto,
     exportar: gtk::Button,
     importar: gtk::Button,
     /// O último diálogo aberto pela importação (a confirmação ou o erro).
@@ -37,6 +38,8 @@ impl PainelDisp {
             .build();
         let nome_perfil = adw::EntryRow::builder().title("Nome do perfil ativo").show_apply_button(true).build();
         g_perfil.add(&nome_perfil);
+        let auto = crate::automatico::PainelAuto::construir();
+        g_perfil.add(&auto.linha);
 
         let g_copia = adw::PreferencesGroup::builder()
             .title("Cópia da configuração")
@@ -115,7 +118,7 @@ impl PainelDisp {
         pagina.add(&g_atualizacao);
         pagina.add(&g_programa);
         let dialogo_importar = std::cell::RefCell::new(None);
-        (Self { exportar, importar, dialogo_importar, linha_site, linha_sobre, calibrar, atualizar_auto, procurar_atualizacao, taxa, nome_perfil, info }, pagina)
+        (Self { auto, exportar, importar, dialogo_importar, linha_site, linha_sobre, calibrar, atualizar_auto, procurar_atualizacao, taxa, nome_perfil, info }, pagina)
     }
 }
 
@@ -128,6 +131,7 @@ pub fn ligar(ui: &Rc<Ui>) {
     });
     let ui2 = ui.clone();
     ui.disp.calibrar.connect_clicked(move |_| ui2.abrir_calibracao());
+    crate::automatico::ligar(ui);
     let ui2 = ui.clone();
     ui.disp.exportar.connect_clicked(move |_| ui2.escolher_exportacao());
     let ui2 = ui.clone();

@@ -22,6 +22,25 @@ enum Chave {
     Off,
 }
 
+#[derive(Subcommand)]
+enum AcaoAutomatica {
+    /// Liga o recurso: o vigia começa agora e passa a iniciar com a sessão
+    Ligar,
+    /// Desliga o recurso: o vigia para e deixa de iniciar com a sessão
+    Desligar,
+    /// Põe ou troca a regra de um programa (ex.: mag82 automatico regra 2 cs2)
+    Regra {
+        /// Número do perfil, a partir de 1
+        perfil: u8,
+        /// Nome do programa, como em "mag82 automatico abertos"
+        programa: Vec<String>,
+    },
+    /// Tira a regra de um programa
+    Remover { programa: Vec<String> },
+    /// Lista os programas abertos agora, com o nome a usar nas regras
+    Abertos,
+}
+
 #[derive(Clone, Copy, ValueEnum)]
 enum Socd {
     /// Vale a última tecla pressionada
@@ -188,6 +207,22 @@ enum Comando {
         /// Só mostra o que mudaria, sem gravar nada
         #[arg(long)]
         simular: bool,
+    },
+    /// Troca automática de perfil conforme o programa aberto: mostra, liga, desliga e edita as regras
+    ///
+    /// Com o recurso ligado, um vigia (mag82 vigiar) inicia com a sessão e confere a cada dois
+    /// segundos quais programas estão abertos. Quando um programa da lista abre, o teclado vai
+    /// para o perfil dele; quando fecha, volta ao perfil de antes. Vale a primeira regra da
+    /// lista cujo programa está aberto. Sem argumentos, mostra a situação.
+    Automatico {
+        #[command(subcommand)]
+        acao: Option<AcaoAutomatica>,
+    },
+    /// O vigia da troca automática de perfil; roda até o recurso ser desligado
+    Vigiar {
+        /// Faz uma conferência só, diz o que aconteceu e sai
+        #[arg(long)]
+        uma_vez: bool,
     },
     /// Lista as interfaces USB do teclado
     Info,
@@ -475,6 +510,62 @@ fn executar(args: Args) -> Resultado<()> {
         }
         return Ok(());
     }
+    if let Comando::Vigiar { uma_vez } = args.comando {
+        return mag82::automatico::vigiar(uma_vez, |frase| println!("{frase}"));
+    }
+    if let Comando::Automatico { acao } = args.comando {
+        use mag82::automatico::{self, Ajustes};
+        let mut ajustes = Ajustes::ler();
+        match acao {
+            Some(AcaoAutomatica::Abertos) => {
+                for nome in automatico::programas_para_escolher() {
+                    println!("{nome}");
+                }
+                return Ok(());
+            }
+            Some(AcaoAutomatica::Ligar) => {
+                let mag82 = automatico::linha_de_comando();
+                automatico::ligar(true, &mag82)?;
+                automatico::iniciar_vigia(&mag82)?;
+                ajustes.ligado = true;
+            }
+            Some(AcaoAutomatica::Desligar) => {
+                automatico::ligar(false, &automatico::linha_de_comando())?;
+                ajustes.ligado = false;
+            }
+            Some(AcaoAutomatica::Regra { perfil, programa }) => {
+                let programa = programa.join(" ");
+                if perfil == 0 || programa.trim().is_empty() {
+                    return invalido("informe o perfil (a partir de 1) e o programa, ex.: mag82 automatico regra 2 cs2");
+                }
+                ajustes.definir_regra(&programa, perfil - 1);
+                ajustes.salvar()?;
+            }
+            Some(AcaoAutomatica::Remover { programa }) => {
+                let programa = programa.join(" ");
+                if !ajustes.remover_regra(&programa) {
+                    return invalido(format!("não há regra para o programa {programa}"));
+                }
+                ajustes.salvar()?;
+            }
+            None => {}
+        }
+        println!("troca automática de perfil: {}", if ajustes.ligado { "ligada" } else { "desligada" });
+        if ajustes.regras.is_empty() {
+            println!("nenhuma regra (crie uma com: mag82 automatico regra PERFIL PROGRAMA)");
+        }
+        let abertos = automatico::programas_abertos();
+        let em_vigor = automatico::regra_em_vigor(&ajustes.regras, &abertos).cloned();
+        for regra in &ajustes.regras {
+            let estado = match (abertos.contains(&regra.programa), em_vigor.as_ref() == Some(regra)) {
+                (true, true) => "  (aberto: é a regra em vigor)",
+                (true, false) => "  (aberto)",
+                _ => "",
+            };
+            println!("perfil {}: {}{estado}", regra.perfil + 1, regra.programa);
+        }
+        return Ok(());
+    }
     if let Comando::Registro = args.comando {
         let caminho = mag82::registro::Registro::caminho_padrao("calibracao.log");
         println!("arquivo: {}", caminho.display());
@@ -500,6 +591,7 @@ fn executar(args: Args) -> Resultado<()> {
     t.verboso = args.verboso;
     match args.comando {
         Comando::Info | Comando::Registro | Comando::Manual | Comando::Funcoes => unreachable!(),
+        Comando::Automatico { .. } | Comando::Vigiar { .. } => unreachable!(),
         Comando::Exportar { arquivo } => {
             let texto = mag82::copia::Copia::ler(&mut t)?.texto();
             match arquivo {

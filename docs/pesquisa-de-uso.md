@@ -23,8 +23,8 @@ decidir o que entra no [TODO.md](../TODO.md).
 |---|---|---|---|
 | 1 | Exportar e importar a configuração em arquivo; backup | várias fontes | **Tem**: o perfil inteiro num arquivo de texto, com conferência do que muda antes de gravar e desfazer |
 | 2 | Atualização de firmware apaga a configuração | algumas | Não se aplica: o programa não atualiza firmware (bloqueado de propósito). Um backup (item 1) cobriria quem atualiza por fora |
-| 3 | Trocar de perfil sozinho conforme o programa ou jogo aberto | forte | **Falta** |
-| 4 | Detecção da janela ativa não funciona no Wayland | algumas | Obstáculo para o item 3 |
+| 3 | Trocar de perfil sozinho conforme o programa ou jogo aberto | forte | **Tem**: regras de programa para perfil, opcionais; valem enquanto o programa está aberto (não pela janela em foco) |
+| 4 | Detecção da janela ativa não funciona no Wayland | algumas | Contornado: o item 3 olha os programas abertos, não a janela ativa, e funciona igual no X11 e no Wayland |
 | 5 | Macros gravadas no teclado, sem programa rodando | forte | **Tem**: as 8 macros ficam no teclado |
 | 6 | Gravar a macro digitando, em vez de montar passo a passo | indireta | **Tem**: os passos podem ser digitados, com ou sem as pausas, e conferidos antes de gravar |
 | 7 | A tela mostra um estado diferente do que o teclado está fazendo | várias | **Melhora neste PR**: a tela é conferida ao voltar para a janela. Antes, só perfil trocado por fora era percebido |
@@ -39,7 +39,7 @@ decidir o que entra no [TODO.md](../TODO.md).
 | 16 | Biblioteca ou compartilhamento de perfis | algumas | **Tem em parte**: o arquivo exportado pode ser passado adiante; não há biblioteca |
 | 17 | Perfis completos no teclado, troca por atalho, e ver se o SOCD está ligado | algumas | **Tem**: 4 perfis no teclado, função de trocar de perfil para pôr numa tecla, e marca nas teclas que estão num par |
 | 18 | Copiar ajustes de um perfil para outro | fraca | **Tem**: exportar, trocar de perfil e importar |
-| 19 | Serviço em segundo plano e dependência de site | fraca, opiniões divididas | **Tem**: nada roda em segundo plano e nada depende de site. Vale manter assim se o item 3 for feito |
+| 19 | Serviço em segundo plano e dependência de site | fraca, opiniões divididas | **Tem**: nada depende de site, e nada roda em segundo plano a menos que o usuário ligue a troca automática de perfil (item 3), que traz um vigia pequeno e some ao ser desligada |
 | 20 | Atualização de firmware arriscada | algumas | Não se aplica: bloqueada na biblioteca |
 
 ## O que mais aparece
@@ -62,9 +62,9 @@ decidir o que entra no [TODO.md](../TODO.md).
    sendo um clique em Aplicar, para o usuário ver o que vai mudar.
 3. ~~**Gravar macro digitando.**~~ Feito: um diálogo capta as teclas apertadas e soltas, com as
    pausas se o usuário quiser, e os passos entram na lista para conferir antes de gravar.
-4. **Troca automática de perfil por programa.** É o mais pedido depois do backup, mas o mais
-   caro: precisa de algo rodando em segundo plano e, no Wayland, não há forma geral de saber qual
-   janela está ativa. Fica por último, e opcional.
+4. ~~**Troca automática de perfil por programa.**~~ Feito, opcional e desligado por padrão. Um
+   vigia pequeno roda em segundo plano só enquanto o recurso está ligado, e olha os programas
+   abertos em vez da janela ativa, que no Wayland não há forma geral de saber.
 
 ## Fontes
 

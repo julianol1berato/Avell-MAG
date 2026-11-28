@@ -7,9 +7,9 @@ O que falta fazer ou conferir. O que já foi decidido como "fica assim" está no
 A ordem vem do levantamento em [docs/pesquisa-de-uso.md](docs/pesquisa-de-uso.md): o que usuários
 de teclados magnéticos mais pedem e o programa ainda não tem.
 
-- [ ] Troca automática de perfil conforme o programa ou jogo aberto. Precisa de algo rodando em
-      segundo plano e, no Wayland, não há forma geral de saber qual janela está ativa; se for
-      feito, opcional.
+- [ ] Troca automática de perfil pela janela em foco, e não só pelo programa aberto. Hoje a regra
+      vale enquanto o programa está rodando, o que funciona igual no X11 e no Wayland; pelo foco,
+      só o X11 tem uma forma geral de saber.
 - [ ] Repositório APT/DNF assinado, para o próprio sistema trazer as versões novas sem o programa
       precisar baixar nada.
 
