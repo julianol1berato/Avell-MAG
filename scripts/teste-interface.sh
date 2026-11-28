@@ -88,6 +88,7 @@ confere "exportação: arquivo com as seções=true"
 confere "importar o que já está no teclado: sem diálogo=true"
 confere "importação: diálogo lista o que muda=true Rapid Trigger do W trocou=true brilho novo=true"
 confere "importação desfeita: true"
+confere "cópia para outro perfil: chegou=true o outro perfil voltou ao que era=true este ficou como estava=true"
 confere "arquivo com função desconhecida: recusado=true nada mudou=true"
 confere "restaurado: true"
 # Aviso de tela que não coube na janela. Sob o xvfb, sem gerenciador de janelas, a janela fica
