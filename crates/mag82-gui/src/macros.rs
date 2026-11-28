@@ -97,7 +97,13 @@ impl PainelMacros {
         opcoes.extend(
             mag82::ESPECIAIS
                 .iter()
-                .filter(|e| !matches!(e.familia, mag82::Familia::Reservada | mag82::Familia::Macro))
+                // mouse e atalhos prontos ficam de fora: não foram conferidos dentro de uma macro
+                .filter(|e| {
+                    !matches!(
+                        e.familia,
+                        mag82::Familia::Reservada | mag82::Familia::Macro | mag82::Familia::Mouse | mag82::Familia::Atalho
+                    )
+                })
                 .map(|e| (e.codigo, e.nome.to_string())),
         );
         let nomes_ref: Vec<&str> = opcoes.iter().map(|(_, n)| n.as_str()).collect();

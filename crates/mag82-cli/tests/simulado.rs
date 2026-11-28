@@ -139,6 +139,26 @@ fn macros() {
 }
 
 #[test]
+fn funcoes_pelo_nome() {
+    let lista = ok(&["funcoes"]);
+    assert!(lista.contains("abrir-a-calculadora") && lista.contains("mouse-botao-esquerdo") && lista.contains("num7"), "{lista}");
+    assert!(ok(&["remapear", "insert", "abrir-a-calculadora"]).contains("insert     -> abrir-a-calculadora"));
+    assert!(ok(&["remapear", "f9", "ctrl+shift+esc"]).contains("f9         -> ctrl+shift+esc"));
+    assert!(ok(&["remapear", "f9", "super+d"]).contains("f9         -> super+d"));
+    assert!(ok(&["remapear", "f10", "mouse-botao-direito"]).contains("f10        -> mouse-botao-direito"));
+    assert!(ok(&["atalhos", "pgdn", "num+"]).contains("num+"));
+    // numa tecla avançada, função especial e tecla com modificadores continuam recusadas
+    for args in [
+        &["mt", "caps", "--toque", "ctrl+c", "--segura", "lctrl"][..],
+        &["tgl", "f8", "--funcao", "mouse-botao-esquerdo"],
+        &["dks", "insert", "--acao", "mouse-botao-esquerdo:1"],
+    ] {
+        let (certo, texto) = mag82(args);
+        assert!(!certo && texto.contains("teclas comuns"), "mag82 {args:?}:\n{texto}");
+    }
+}
+
+#[test]
 fn recusa_o_que_nao_pode() {
     let (certo, texto) = mag82(&["atuacao", "w", "--ponto", "9"]);
     assert!(!certo, "ponto de 9 mm deveria ser recusado:\n{texto}");
