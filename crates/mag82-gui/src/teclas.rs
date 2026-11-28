@@ -52,6 +52,26 @@ const CAMPOS: [(Campo, f64); 6] = [
 const CAMPOS_RT: [Campo; 3] = [Campo::RtInicio, Campo::RtPress, Campo::RtSolta];
 
 /// Conjunto de valores de atuação pronto para um uso; preenche os campos sem gravar nada.
+/// Põe uma função na lista e na linha "Junto com". Uma combinação montada pelo usuário
+/// (Ctrl + C) aparece como a tecla na lista e os modificadores marcados; as que têm nome próprio
+/// no catálogo (Super + D) aparecem pelo nome. Devolve falso se a lista não tem a função.
+pub fn mostrar_funcao(lista: &adw::ComboRow, mods: &crate::util::Modificadores, opcoes: &[(u16, String)], codigo: u16) -> bool {
+    let escolher = |c: u16| opcoes.iter().position(|(o, _)| *o == c).map(|i| lista.set_selected(i as u32)).is_some();
+    if escolher(codigo) {
+        mods.permitir(crate::util::aceita_modificadores(codigo));
+        mods.marcar(&[]);
+        return true;
+    }
+    match mag82::combinacao(codigo) {
+        Some((modificadores, tecla)) if escolher(tecla) => {
+            mods.permitir(true);
+            mods.marcar(&modificadores);
+            true
+        }
+        _ => false,
+    }
+}
+
 /// Exemplo pronto de par: as duas teclas, pelo que enviam de fábrica, e a opção da lista
 /// "Com as duas pressionadas".
 pub struct PredefDePar {
@@ -262,6 +282,8 @@ pub struct Teclas {
     g_fun: adw::PreferencesGroup,
     pub funcoes: Vec<(u16, String)>,
     pub funcao: adw::ComboRow,
+    pub fun_mods: crate::util::Modificadores,
+    pub fn_mods: crate::util::Modificadores,
     ap_fun: gtk::Button,
     padrao_fun: gtk::Button,
 
@@ -431,7 +453,9 @@ impl Teclas {
             .build();
         let padrao_fun = botao("Restaurar padrão", false);
         let ap_fun = botao("Aplicar", true);
+        let fun_mods = crate::util::Modificadores::construir();
         g_fun.add(&funcao);
+        g_fun.add(&fun_mods.linha);
         g_fun.add(&acoes(&[&padrao_fun, &ap_fun]));
 
         // ----- modo Atalhos Fn -----
@@ -457,7 +481,9 @@ impl Teclas {
             .build();
         let padrao_fn = botao("Restaurar padrão", false);
         let ap_fn = botao("Aplicar", true);
+        let fn_mods = crate::util::Modificadores::construir();
         g_fn.add(&fn_funcao);
+        g_fn.add(&fn_mods.linha);
         g_fn.add(&acoes(&[&padrao_fn, &ap_fn]));
         let g_atalhos = adw::PreferencesGroup::builder()
             .title("Atalhos que existem agora")
@@ -577,6 +603,8 @@ impl Teclas {
             ap_cor,
             tira_cor,
             g_fun,
+            fun_mods,
+            fn_mods,
             funcoes,
             funcao,
             ap_fun,
@@ -616,6 +644,17 @@ pub fn ligar(ui: &Rc<Ui>) {
     clique!(t.ap_cor, |u: &Rc<Ui>| u.aplicar_cor(false));
     clique!(t.tira_cor, |u: &Rc<Ui>| u.aplicar_cor(true));
     clique!(t.ap_fun, |u: &Rc<Ui>| u.aplicar_funcao(false));
+    // os modificadores só valem para teclas comuns: a linha acompanha a função escolhida
+    let ui2 = ui.clone();
+    t.funcao.connect_selected_notify(move |lista| {
+        let t = &ui2.tec;
+        t.fun_mods.permitir(t.funcoes.get(lista.selected() as usize).is_some_and(|(c, _)| crate::util::aceita_modificadores(*c)));
+    });
+    let ui2 = ui.clone();
+    t.fn_funcao.connect_selected_notify(move |lista| {
+        let t = &ui2.tec;
+        t.fn_mods.permitir(t.fn_opcoes.get(lista.selected() as usize).is_some_and(|(c, _)| crate::util::aceita_modificadores(*c)));
+    });
     clique!(t.padrao_fun, |u: &Rc<Ui>| u.aplicar_funcao(true));
     clique!(t.ap_fn, |u: &Rc<Ui>| u.aplicar_fn(false));
     clique!(t.padrao_fn, |u: &Rc<Ui>| u.aplicar_fn(true));
@@ -1006,9 +1045,7 @@ impl Ui {
         match sel[..] {
             [pos] if !e_fn => {
                 let codigo = d.fn_atual[&pos];
-                if let Some(i) = t.fn_opcoes.iter().position(|(c, _)| *c == codigo) {
-                    t.fn_funcao.set_selected(i as u32);
-                }
+                mostrar_funcao(&t.fn_funcao, &t.fn_mods, &t.fn_opcoes, codigo);
                 t.fn_funcao.set_title(&format!("Fn + {} faz", rotulo(&d.nomes[&pos])));
                 t.fn_funcao.set_subtitle(&if codigo == mag82::FUNCAO_PADRAO {
                     "Agora: nada (a tecla continua normal)".to_string()
@@ -1084,9 +1121,7 @@ impl Ui {
             t.cor_btn.set_rgba(&para_rgba(c));
         }
         if sel.len() == 1 {
-            if let Some(i) = t.funcoes.iter().position(|(c, _)| *c == d.atual[primeira]) {
-                t.funcao.set_selected(i as u32);
-            }
+            mostrar_funcao(&t.funcao, &t.fun_mods, &t.funcoes, d.atual[primeira]);
         }
     }
 
@@ -1270,7 +1305,7 @@ impl Ui {
 
     pub fn aplicar_funcao(self: &Rc<Self>, padrao: bool) {
         let [pos] = self.selecionadas()[..] else { return };
-        let escolhida = self.tec.funcoes[self.tec.funcao.selected() as usize].0;
+        let escolhida = self.tec.fun_mods.codigo(self.tec.funcoes[self.tec.funcao.selected() as usize].0);
         let Some(codigo) = self.d.borrow().as_ref().map(|d| if padrao { d.fabrica[&pos] } else { escolhida }) else {
             return;
         };
@@ -1331,7 +1366,8 @@ impl Ui {
     /// Grava o atalho de Fn da tecla selecionada (`padrao` = como vem de fábrica).
     pub fn aplicar_fn(self: &Rc<Self>, padrao: bool) {
         let [pos] = self.selecionadas()[..] else { return };
-        let escolhido = self.tec.fn_opcoes[(self.tec.fn_funcao.selected() as usize).min(self.tec.fn_opcoes.len() - 1)].0;
+        let escolhido =
+            self.tec.fn_mods.codigo(self.tec.fn_opcoes[(self.tec.fn_funcao.selected() as usize).min(self.tec.fn_opcoes.len() - 1)].0);
         let Some(codigo) = self.d.borrow().as_ref().map(|d| if padrao { d.fn_fabrica[&pos] } else { escolhido }) else {
             return;
         };
