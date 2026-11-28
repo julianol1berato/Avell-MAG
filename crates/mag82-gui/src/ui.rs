@@ -327,6 +327,16 @@ impl Ui {
         self.avisos.add_toast(aviso);
     }
 
+    /// Aviso com um botão, que fica na tela o bastante para ser usado.
+    pub fn avisar_com_botao(&self, texto: &str, botao: &str, ao_clicar: impl Fn() + 'static) {
+        let aviso = adw::Toast::builder().title(texto).button_label(botao).timeout(15).build();
+        aviso.connect_button_clicked(move |_| ao_clicar());
+        if let Some(anterior) = self.aviso_atual.replace(Some(aviso.clone())) {
+            anterior.dismiss();
+        }
+        self.avisos.add_toast(aviso);
+    }
+
     /// Para mensagens que o usuário precisa de tempo para ler.
     pub fn avisar_demorado(&self, texto: &str) {
         self.mostrar_aviso(texto, 20);

@@ -11,6 +11,10 @@ pub struct PainelDisp {
     linha_site: adw::ActionRow,
     linha_sobre: adw::ActionRow,
     calibrar: gtk::Button,
+    exportar: gtk::Button,
+    importar: gtk::Button,
+    /// O último diálogo aberto pela importação (a confirmação ou o erro).
+    pub dialogo_importar: std::cell::RefCell<Option<adw::AlertDialog>>,
     pub atualizar_auto: adw::SwitchRow,
     pub procurar_atualizacao: adw::ActionRow,
     pub taxa: adw::ComboRow,
@@ -33,6 +37,25 @@ impl PainelDisp {
             .build();
         let nome_perfil = adw::EntryRow::builder().title("Nome do perfil ativo").show_apply_button(true).build();
         g_perfil.add(&nome_perfil);
+
+        let g_copia = adw::PreferencesGroup::builder()
+            .title("Cópia da configuração")
+            .description("Do perfil ativo: atuação, funções das teclas, atalhos com Fn, teclas avançadas, macros, luzes e cores fixas")
+            .build();
+        let exportar = gtk::Button::builder().label("Exportar…").valign(gtk::Align::Center).build();
+        let linha_exportar = adw::ActionRow::builder()
+            .title("Salvar em um arquivo")
+            .subtitle("Para guardar, copiar para outro perfil ou compartilhar")
+            .build();
+        linha_exportar.add_suffix(&exportar);
+        let importar = gtk::Button::builder().label("Importar…").valign(gtk::Align::Center).build();
+        let linha_importar = adw::ActionRow::builder()
+            .title("Trazer de um arquivo")
+            .subtitle("Mostra o que muda antes de gravar no teclado, e pode ser desfeito")
+            .build();
+        linha_importar.add_suffix(&importar);
+        g_copia.add(&linha_exportar);
+        g_copia.add(&linha_importar);
 
         let g_sobre = adw::PreferencesGroup::builder().title("Sobre o teclado").build();
         let info: Vec<adw::ActionRow> = ["Modelo", "Firmware", "Data do firmware", "Protocolo", "Tipo de switch"]
@@ -85,12 +108,14 @@ impl PainelDisp {
 
         let pagina = adw::PreferencesPage::new();
         pagina.add(&g_perfil);
+        pagina.add(&g_copia);
         pagina.add(&g_desemp);
         pagina.add(&g_cal);
         pagina.add(&g_sobre);
         pagina.add(&g_atualizacao);
         pagina.add(&g_programa);
-        (Self { linha_site, linha_sobre, calibrar, atualizar_auto, procurar_atualizacao, taxa, nome_perfil, info }, pagina)
+        let dialogo_importar = std::cell::RefCell::new(None);
+        (Self { exportar, importar, dialogo_importar, linha_site, linha_sobre, calibrar, atualizar_auto, procurar_atualizacao, taxa, nome_perfil, info }, pagina)
     }
 }
 
@@ -103,6 +128,10 @@ pub fn ligar(ui: &Rc<Ui>) {
     });
     let ui2 = ui.clone();
     ui.disp.calibrar.connect_clicked(move |_| ui2.abrir_calibracao());
+    let ui2 = ui.clone();
+    ui.disp.exportar.connect_clicked(move |_| ui2.escolher_exportacao());
+    let ui2 = ui.clone();
+    ui.disp.importar.connect_clicked(move |_| ui2.escolher_importacao());
     let ui2 = ui.clone();
     ui.disp.taxa.connect_selected_notify(move |_| ui2.taxa_mudou());
     let ui2 = ui.clone();

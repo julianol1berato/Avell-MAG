@@ -73,6 +73,12 @@ confere "ao voltar para a janela, a tela mostra: 0x2192"
 confere "desfeito por fora: 0x0014; sem mudança, a configuração fica igual=true"
 confere "depois da falha: tela=ok brilho voltou=true edição preservada=true"
 confere "reconectou sozinho: tela=ok dados=true"
+# cópia da configuração: exporta, importa um arquivo editado, desfaz e recusa o que não conhece
+confere "exportação: arquivo com as seções=true"
+confere "importar o que já está no teclado: sem diálogo=true"
+confere "importação: diálogo lista o que muda=true Rapid Trigger do W trocou=true brilho novo=true"
+confere "importação desfeita: true"
+confere "arquivo com função desconhecida: recusado=true nada mudou=true"
 confere "restaurado: true"
 # Aviso de tela que não coube na janela. Sob o xvfb, sem gerenciador de janelas, a janela fica
 # 10 px menor que o pedido em cada medida e o aviso aparece com 20 px de diferença: até aí é do

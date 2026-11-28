@@ -105,6 +105,8 @@ E a interface só mostra o que o teclado confirmou.
 E mais:
 
 - **Macros**: sequências de teclas que o teclado executa sozinho, ligadas a qualquer tecla.
+- **Cópia da configuração**: salve o perfil inteiro num arquivo e traga de volta quando quiser, para
+  guardar, copiar para outro perfil ou compartilhar. Veja [como funciona](#cópia-da-configuração).
 - **Curso ao vivo**: veja na tela o quanto a tecla afunda e onde cai o ponto de atuação.
 - **SOCD** para teclas opostas (A/D, W/S): vale a última, uma delas sempre vence, ou nenhuma.
 - **Teclas avançadas**: DKS (até quatro funções por ponto do curso), dupla função (toque e segurar),
@@ -194,10 +196,34 @@ mag82 luz --lateral --modo 2
 mag82 paleta 1 ff8800
 mag82 taxa 1000
 mag82 perfil 2
+mag82 exportar meu-teclado.mag82             # salva o perfil ativo num arquivo
+mag82 importar meu-teclado.mag82 --simular   # mostra o que mudaria, sem gravar
+mag82 importar meu-teclado.mag82
 mag82 calibrar
 ```
 
 `mag82 --help` lista o resto.
+
+## Cópia da configuração
+
+Em **Dispositivo → Cópia da configuração**, **Exportar** salva num arquivo tudo o que o perfil
+ativo tem: atuação e Rapid Trigger de cada tecla, o que cada tecla envia (sozinha e com Fn), teclas
+avançadas, macros, efeitos de luz, paletas e cores fixas das teclas e da faixa lateral. Ficam de
+fora o nome do perfil, a taxa de resposta e a calibração, que não são do perfil.
+
+**Importar** lê um arquivo desses e mostra o que muda antes de gravar. Só o que for diferente é
+gravado, no perfil que estiver ativo, e no fim o programa relê o teclado para conferir que ficou
+igual ao arquivo. A configuração de antes fica guardada em
+`~/.local/state/mag82/antes-da-ultima-importacao.mag82`, e o aviso de "Configuração importada" tem
+um botão **Desfazer**.
+
+Para copiar de um perfil para outro: exporte, troque de perfil e importe.
+
+O arquivo é texto simples e pode ser editado. Ele é dividido em seções (`[atuacao]`, `[funcoes]`,
+`[avancadas]`, `[macros]`, `[luz-teclas]`, `[luz-lateral]`): cada seção presente vale por inteiro, e
+uma seção apagada deixa aquela parte do teclado como está. Um arquivo só com `[luz-teclas]`, por
+exemplo, muda só a luz das teclas. O programa só grava funções que conhece: um arquivo que peça
+outra coisa é recusado antes de qualquer gravação.
 
 ## O que as teclas avançadas aceitam
 

@@ -15,6 +15,7 @@
 mod atualizacao;
 mod avancadas;
 mod calibracao;
+mod copia;
 mod curso;
 mod dados;
 mod dispositivo;
