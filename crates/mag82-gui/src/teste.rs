@@ -89,6 +89,28 @@ async fn fotografar(ui: &Rc<Ui>, prefixo: &str, pagina: &str, nome: &str) {
     }
 }
 
+/// Fotografa o conteúdo de um menu aberto: ele fica numa superfície à parte e não sai na imagem
+/// da janela.
+async fn fotografar_menu(ui: &Rc<Ui>, menu: &gtk::MenuButton, prefixo: &str, nome: &str) {
+    menu.popup();
+    pausa(600).await;
+    let conteudo = menu.popover().map(|p| p.upcast::<gtk::Widget>());
+    let renderizador = menu.popover().and_then(|p| p.native()).and_then(|n| n.renderer()).or_else(|| ui.janela.native().and_then(|n| n.renderer()));
+    if let (Some(conteudo), Some(r)) = (conteudo, renderizador) {
+        let (larg, alt) = (conteudo.width(), conteudo.height());
+        let snapshot = gtk::Snapshot::new();
+        gtk::WidgetPaintable::new(Some(&conteudo)).snapshot(&snapshot, f64::from(larg), f64::from(alt));
+        if let Some(no) = snapshot.to_node() {
+            let area = gtk::graphene::Rect::new(0.0, 0.0, larg as f32, alt as f32);
+            if let Err(e) = r.render_texture(&no, Some(&area)).save_to_png(format!("{prefixo}-{nome}.png")) {
+                eprintln!("falha ao salvar imagem: {e}");
+            }
+        }
+    }
+    menu.popdown();
+    pausa(300).await;
+}
+
 /// Fotografa as telas em vários tamanhos de janela, do mínimo ao maximizado.
 async fn redimensionar(ui: &Rc<Ui>, prefixo: &str) {
     use crate::ui::{ALTURA_MIN, LARGURA_MIN};
@@ -369,6 +391,40 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     ocioso(ui).await;
     println!("rs removido: {:?}", ui.d.borrow().as_ref().unwrap().avancada[&D]);
     ui.marcar(false);
+
+    // ----- predefinições: escolhem as teclas e montam a tela, sem gravar nada -----
+    let gravadas = retrato(ui);
+    ui.mudar_modo(Modo::Socd);
+    ui.selecionar(&[]);
+    fotografar(ui, prefixo, "teclas", "predefinicoes-de-par").await;
+    fotografar_menu(ui, &t.predefs_par, prefixo, "menu-de-pares").await;
+    for (i, predef) in crate::teclas::PREDEFS_DE_PAR.iter().enumerate() {
+        ui.usar_predef_de_par(i);
+        let dados = ui.d.borrow();
+        let d = dados.as_ref().unwrap();
+        let teclas: Vec<u16> = ui.selecionadas().iter().map(|p| d.fabrica[p]).collect();
+        println!(
+            "predefinição de par {i}: teclas certas={} modo={} dá para aplicar={}",
+            teclas == [predef.teclas.0, predef.teclas.1],
+            t.socd_modo.selected(),
+            t.ap_socd.is_sensitive()
+        );
+    }
+    fotografar(ui, prefixo, "teclas", "predefinicao-de-par-montada").await;
+    ui.mudar_modo(Modo::Avancada);
+    ui.selecionar(&[]);
+    fotografar(ui, prefixo, "teclas", "predefinicoes-avancadas").await;
+    fotografar_menu(ui, &ui.av.predefs, prefixo, "menu-de-avancadas").await;
+    for (i, predef) in crate::avancadas::PREDEFS.iter().enumerate() {
+        ui.usar_predef_avancada(i);
+        let dados = ui.d.borrow();
+        let d = dados.as_ref().unwrap();
+        let teclas: Vec<u16> = ui.selecionadas().iter().map(|p| d.fabrica[p]).collect();
+        println!("predefinição avançada {i}: tecla certa={} montada igual={}", teclas == [predef.tecla], ui.av.montada() == predef.avancada);
+    }
+    fotografar(ui, prefixo, "teclas", "predefinicao-avancada-montada").await;
+    println!("predefinições: nada gravado={}", gravadas == retrato(ui));
+    ui.selecionar(&[]);
 
     // ----- DKS: monta no painel, grava, confere e remove -----
     const INSERT: Pos = (1, 14);

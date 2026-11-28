@@ -33,7 +33,7 @@ decidir o que entra no [TODO.md](../TODO.md).
 | 10 | No Linux, a permissão do hidraw (udev) é a barreira de entrada | várias | **Tem**: os pacotes instalam a regra udev e a mensagem de erro diz o que fazer |
 | 11 | Fabricante não dá suporte a Linux | forte | É a razão de o programa existir |
 | 12 | Driver web só funciona em navegador Chromium | várias | **Tem**: programa nativo, com linha de comando |
-| 13 | Os recursos existem, mas ninguém acha nem entende | forte | **Tem em parte**: cada tipo de tecla avançada tem explicação na tela, e a atuação tem predefinições. **Faltam** predefinições para as teclas avançadas (por exemplo, SOCD em A/D num clique) |
+| 13 | Os recursos existem, mas ninguém acha nem entende | forte | **Tem**: cada tipo de tecla avançada tem explicação na tela, e a atuação tem predefinições. Os pares e as teclas avançadas também têm predefinições (SOCD em A/D e W/S, Caps Lock com dupla função, W contínuo e W que corre no fundo) |
 | 14 | Interface travada, mal traduzida, com enfeites inúteis | várias (reviews) | Interface nativa, em português, sem enfeite. Sem tradução para outros idiomas |
 | 15 | Mais controle de luz por tecla e prévia na tela | forte | **Tem**: cor fixa por tecla e por LED da lateral, com prévia |
 | 16 | Biblioteca ou compartilhamento de perfis | algumas | **Tem em parte**: o arquivo exportado pode ser passado adiante; não há biblioteca |
@@ -57,7 +57,9 @@ decidir o que entra no [TODO.md](../TODO.md).
    remapeamento, atalhos Fn, teclas avançadas, macros, luz e cores fixas, porque a reclamação
    recorrente é justamente a exportação que deixa partes de fora. Sendo legível, também serve para
    compartilhar (item 16) e para copiar de um perfil para outro (item 18).
-2. **Predefinições de teclas avançadas**: SOCD em A/D e W/S, dupla função no Caps Lock, num clique.
+2. ~~**Predefinições de teclas avançadas**~~ Feito: SOCD em A/D e W/S, dupla função no Caps Lock e
+   dois exemplos no W. A predefinição escolhe as teclas e preenche a tela; a gravação continua
+   sendo um clique em Aplicar, para o usuário ver o que vai mudar.
 3. **Gravar macro digitando.**
 4. **Troca automática de perfil por programa.** É o mais pedido depois do backup, mas o mais
    caro: precisa de algo rodando em segundo plano e, no Wayland, não há forma geral de saber qual

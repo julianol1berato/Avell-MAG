@@ -216,6 +216,42 @@ pub fn botao(texto: &str, destaque: bool) -> gtk::Button {
     b
 }
 
+/// Botão "Predefinições", que abre uma lista de exemplos prontos: (título, explicação) de cada
+/// um. Devolve também a lista, para ligar o clique em cada linha.
+pub fn menu_de_predefinicoes(itens: &[(&str, &str)]) -> (gtk::MenuButton, gtk::ListBox) {
+    let lista = gtk::ListBox::builder().selection_mode(gtk::SelectionMode::None).css_classes(["boxed-list"]).build();
+    for (titulo, explicacao) in itens {
+        lista.append(&adw::ActionRow::builder().title(*titulo).subtitle(*explicacao).activatable(true).build());
+    }
+    let nota = gtk::Label::builder()
+        .label("Uma predefinição escolhe as teclas e preenche a tela. Nada é gravado até você aplicar.")
+        .wrap(true)
+        .xalign(0.0)
+        .max_width_chars(40)
+        .css_classes(["dim-label", "caption"])
+        .build();
+    let caixa = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(10)
+        .margin_top(8)
+        .margin_bottom(8)
+        .margin_start(8)
+        .margin_end(8)
+        .width_request(340)
+        .build();
+    caixa.append(&lista);
+    caixa.append(&nota);
+    let popover = gtk::Popover::builder().child(&caixa).build();
+    let menu = gtk::MenuButton::builder()
+        .label("Predefinições")
+        .popover(&popover)
+        .valign(gtk::Align::Center)
+        .css_classes(["flat"])
+        .tooltip_text("Exemplos prontos: escolhem as teclas e preenchem a tela")
+        .build();
+    (menu, lista)
+}
+
 pub fn botao_cor() -> gtk::ColorDialogButton {
     let dialogo = gtk::ColorDialog::builder().with_alpha(false).build();
     gtk::ColorDialogButton::builder().dialog(&dialogo).valign(gtk::Align::Center).build()

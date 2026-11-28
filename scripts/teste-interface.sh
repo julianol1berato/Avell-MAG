@@ -73,6 +73,13 @@ confere "ao voltar para a janela, a tela mostra: 0x2192"
 confere "desfeito por fora: 0x0014; sem mudança, a configuração fica igual=true"
 confere "depois da falha: tela=ok brilho voltou=true edição preservada=true"
 confere "reconectou sozinho: tela=ok dados=true"
+# predefinições de pares e de teclas avançadas: montam a tela e não gravam
+confere "predefinição de par 0: teclas certas=true modo=0 dá para aplicar=true"
+confere "predefinição de par 1: teclas certas=true modo=0 dá para aplicar=true"
+confere "predefinição avançada 0: tecla certa=true montada igual=true"
+confere "predefinição avançada 1: tecla certa=true montada igual=true"
+confere "predefinição avançada 2: tecla certa=true montada igual=true"
+confere "predefinições: nada gravado=true"
 # cópia da configuração: exporta, importa um arquivo editado, desfaz e recusa o que não conhece
 confere "exportação: arquivo com as seções=true"
 confere "importar o que já está no teclado: sem diálogo=true"

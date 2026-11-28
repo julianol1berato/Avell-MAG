@@ -52,6 +52,30 @@ const CAMPOS: [(Campo, f64); 6] = [
 const CAMPOS_RT: [Campo; 3] = [Campo::RtInicio, Campo::RtPress, Campo::RtSolta];
 
 /// Conjunto de valores de atuação pronto para um uso; preenche os campos sem gravar nada.
+/// Exemplo pronto de par: as duas teclas, pelo que enviam de fábrica, e a opção da lista
+/// "Com as duas pressionadas".
+pub struct PredefDePar {
+    pub titulo: &'static str,
+    pub explicacao: &'static str,
+    pub teclas: (u16, u16),
+    pub opcao: u32,
+}
+
+pub const PREDEFS_DE_PAR: [PredefDePar; 2] = [
+    PredefDePar {
+        titulo: "A e D: vale a última pressionada",
+        explicacao: "Para trocar de lado sem esperar soltar a outra tecla",
+        teclas: (0x04, 0x07),
+        opcao: 0,
+    },
+    PredefDePar {
+        titulo: "W e S: vale a última pressionada",
+        explicacao: "O mesmo, para frente e para trás",
+        teclas: (0x1A, 0x16),
+        opcao: 0,
+    },
+];
+
 pub struct Predef {
     nome: &'static str,
     dica: &'static str,
@@ -204,6 +228,9 @@ pub struct Teclas {
     tamanho: Cell<(i32, i32)>,
     titulo_sel: gtk::Label,
     todas: gtk::Button,
+    /// O que fica ao lado de "Limpar": "Todas", as predefinições do modo, ou nada. É uma pilha
+    /// para a linha não mudar de tamanho a cada troca de modo.
+    ao_lado: gtk::Stack,
     nenhuma: gtk::Button,
     pub modo: Cell<Modo>,
     modo_btns: Vec<(Modo, gtk::ToggleButton)>,
@@ -248,9 +275,10 @@ pub struct Teclas {
     g_atalhos: adw::PreferencesGroup,
     linhas_atalhos: RefCell<Vec<adw::ActionRow>>,
 
-    g_socd: adw::PreferencesGroup,
     pub socd_modo: adw::ComboRow,
-    ap_socd: gtk::Button,
+    pub predefs_par: gtk::MenuButton,
+    lista_predefs_par: gtk::ListBox,
+    pub ap_socd: gtk::Button,
     tira_socd: gtk::Button,
 }
 
@@ -324,7 +352,10 @@ impl Teclas {
         camadas.append(&camada_fn);
         let selecao = gtk::Box::builder().spacing(4).build();
         selecao.append(&titulo_sel);
-        selecao.append(&todas);
+        let ao_lado = gtk::Stack::builder().hhomogeneous(true).vhomogeneous(true).build();
+        ao_lado.add_named(&todas, Some("todas"));
+        ao_lado.add_named(&gtk::Box::new(gtk::Orientation::Horizontal, 0), Some("nada"));
+        selecao.append(&ao_lado);
         selecao.append(&nenhuma);
         // modos, seleção e camadas: três linhas na mesma coluna do painel de ajustes
         let linha_sel = gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(10).build();
@@ -462,6 +493,9 @@ impl Teclas {
         let socd_modo = adw::ComboRow::builder().title("Com as duas pressionadas").build();
         let tira_socd = botao("Remover", false);
         let ap_socd = botao("Aplicar", true);
+        let itens: Vec<(&str, &str)> = PREDEFS_DE_PAR.iter().map(|p| (p.titulo, p.explicacao)).collect();
+        let (predefs_par, lista_predefs_par) = crate::util::menu_de_predefinicoes(&itens);
+        ao_lado.add_named(&predefs_par, Some(Modo::Socd.nome()));
         g_socd.add(&socd_modo);
         g_socd.add(&acoes(&[&tira_socd, &ap_socd]));
 
@@ -481,6 +515,7 @@ impl Teclas {
         paineis.add_named(&rolavel(&avancadas.painel, 820), Some(Modo::Avancada.nome()));
         // o seletor de tipo fica com os outros seletores, abaixo da linha da seleção
         linha_sel.append(&avancadas.tipos);
+        ao_lado.add_named(&avancadas.predefs, Some(Modo::Avancada.nome()));
 
         let topo = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -520,6 +555,7 @@ impl Teclas {
             tamanho: Cell::new((0, 0)),
             titulo_sel,
             todas,
+            ao_lado,
             nenhuma,
             modo: Cell::new(Modo::Atuacao),
             modo_btns,
@@ -552,8 +588,9 @@ impl Teclas {
             padrao_fn,
             g_atalhos,
             linhas_atalhos: RefCell::new(Vec::new()),
-            g_socd,
             socd_modo,
+            predefs_par,
+            lista_predefs_par,
             ap_socd,
             tira_socd,
         };
@@ -583,6 +620,11 @@ pub fn ligar(ui: &Rc<Ui>) {
     clique!(t.ap_fn, |u: &Rc<Ui>| u.aplicar_fn(false));
     clique!(t.padrao_fn, |u: &Rc<Ui>| u.aplicar_fn(true));
     clique!(t.ap_socd, |u: &Rc<Ui>| u.aplicar_socd());
+    let ui2 = ui.clone();
+    t.lista_predefs_par.connect_row_activated(move |_, linha| {
+        ui2.tec.predefs_par.popdown();
+        ui2.usar_predef_de_par(linha.index() as usize);
+    });
     clique!(t.tira_socd, |u: &Rc<Ui>| u.remover_socd());
     for (i, b) in t.predef_btns.iter().enumerate() {
         let ui2 = ui.clone();
@@ -947,12 +989,13 @@ impl Ui {
             [a, b] => format!("Teclas selecionadas: {} e {}", rotulo_longo(&d.nomes[&a]), rotulo_longo(&d.nomes[&b])),
             _ => format!("{} teclas selecionadas", sel.len()),
         });
-        // Nos modos de uma ou duas teclas o botão "Todas" não serve, mas continua ocupando o lugar
-        // dele: se sumisse, a linha mudaria de tamanho a cada troca de modo.
-        let serve = modo.limite().is_none();
-        t.todas.set_opacity(if serve { 1.0 } else { 0.0 });
-        t.todas.set_can_target(serve);
-        t.todas.set_can_focus(serve);
+        // Nos modos de uma ou duas teclas o botão "Todas" não serve: o lugar dele fica com as
+        // predefinições do modo, ou vazio.
+        t.ao_lado.set_visible_child_name(match modo {
+            Modo::Socd | Modo::Avancada => modo.nome(),
+            _ if modo.limite().is_none() => "todas",
+            _ => "nada",
+        });
         t.nenhuma.set_sensitive(!sel.is_empty());
         t.g_atu.set_sensitive(!sel.is_empty());
         t.g_cor.set_sensitive(!sel.is_empty());
@@ -979,7 +1022,7 @@ impl Ui {
             }
         }
         self.atualizar_avancada(&sel);
-        t.g_socd.set_sensitive(!sel.is_empty());
+        t.socd_modo.set_sensitive(!sel.is_empty());
         t.ap_socd.set_sensitive(sel.len() == 2);
         t.tira_socd.set_sensitive(sel.iter().any(|p| matches!(d.avancada[p], Avancada::Socd { .. } | Avancada::Rs { .. })));
 
@@ -1315,6 +1358,19 @@ impl Ui {
     }
 
     // ---------- modo SOCD ----------
+
+    /// Seleciona as duas teclas da predefinição e escolhe o modo do par, sem gravar.
+    pub fn usar_predef_de_par(&self, indice: usize) {
+        let Some(predef) = PREDEFS_DE_PAR.get(indice) else { return };
+        let achar = |codigo: u16| self.d.borrow().as_ref().and_then(|d| d.fabrica.iter().find(|(_, c)| **c == codigo).map(|(p, _)| *p));
+        let (Some(a), Some(b)) = (achar(predef.teclas.0), achar(predef.teclas.1)) else {
+            self.avisar_erro("Este teclado não tem as teclas dessa predefinição");
+            return;
+        };
+        self.selecionar(&[a, b]);
+        self.tec.socd_modo.set_selected(predef.opcao);
+        self.avisar("Predefinição montada na tela. Confira e clique em Aplicar");
+    }
 
     pub fn aplicar_socd(self: &Rc<Self>) {
         let [a, b] = self.selecionadas()[..] else { return };
