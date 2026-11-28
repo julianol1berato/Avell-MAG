@@ -78,6 +78,9 @@ pub struct PainelMacros {
     g_passos: adw::PreferencesGroup,
     linhas: RefCell<Vec<LinhaPasso>>,
     adicionar: gtk::Button,
+    digitar: gtk::Button,
+    /// O diálogo de digitar os passos, enquanto está aberto.
+    pub captura: RefCell<Option<Rc<crate::captura::Dialogo>>>,
     modo: adw::ComboRow,
     repeticoes: adw::SpinRow,
     apagar: gtk::Button,
@@ -122,18 +125,23 @@ impl PainelMacros {
         g_qual.add(&usada_por);
 
         let adicionar = botao("Adicionar passo", false);
+        let digitar = botao("Digitar os passos…", false);
+        digitar.set_tooltip_text(Some("Aperte as teclas e elas viram os passos da macro"));
+        let do_grupo = gtk::Box::builder().spacing(8).build();
+        do_grupo.append(&digitar);
+        do_grupo.append(&adicionar);
         let g_passos = adw::PreferencesGroup::builder()
             .title("Passos")
             .description(
                 "Na ordem em que acontecem. Depois de cada passo o teclado pode esperar um tempo; \
                  em um passo de pressionar, é por esse tempo que a tecla fica segurada.",
             )
-            .header_suffix(&adicionar)
+            .header_suffix(&do_grupo)
             .build();
         // sem passos, a lista diz o que fazer em vez de ficar em branco
         let vazia = adw::ActionRow::builder()
             .title("Nenhum passo ainda")
-            .subtitle("Use Adicionar passo para começar a montar a macro")
+            .subtitle("Use Digitar os passos para captar o que você apertar, ou Adicionar passo para montar um a um")
             .build();
         g_passos.add(&vazia);
 
@@ -172,6 +180,8 @@ impl PainelMacros {
             g_passos,
             linhas: RefCell::new(Vec::new()),
             adicionar,
+            digitar,
+            captura: RefCell::new(None),
             modo,
             repeticoes,
             apagar,
@@ -232,6 +242,24 @@ impl PainelMacros {
         p.numerar();
     }
 
+    /// Verdadeiro se a função pode ser um passo (está na lista de funções dos passos).
+    pub fn serve(&self, codigo: u16) -> bool {
+        self.opcoes.iter().any(|(c, _)| *c == codigo)
+    }
+
+    /// Uma sequência de ações escrita para o usuário, com os nomes da lista de funções.
+    pub fn descrever(&self, acoes: &[AcaoMacro]) -> String {
+        crate::captura::descrever(acoes, |codigo| {
+            self.opcoes.iter().find(|(c, _)| *c == codigo).map_or_else(|| crate::captura::nome_na_previa(codigo), |(_, n)| n.clone())
+        })
+    }
+
+    /// Quantos passos estão montados na tela.
+    #[cfg_attr(not(feature = "autoteste"), allow(dead_code))]
+    pub fn quantos_passos(&self) -> usize {
+        self.linhas.borrow().len()
+    }
+
     fn numerar(&self) {
         let linhas = self.linhas.borrow();
         for (i, l) in linhas.iter().enumerate() {
@@ -286,6 +314,10 @@ pub fn ligar(ui: &Rc<Ui>) {
     p.adicionar.connect_clicked(move |_| {
         let primeira = ui2.macros.opcoes.first().map_or(0, |(c, _)| *c);
         PainelMacros::acrescentar(&ui2, Passo { tipo: 0, codigo: primeira, espera: 0 });
+    });
+    let ui2 = ui.clone();
+    p.digitar.connect_clicked(move |_| {
+        ui2.digitar_passos();
     });
     let ui2 = ui.clone();
     p.gravar.connect_clicked(move |_| ui2.gravar_macro(false));
@@ -365,6 +397,24 @@ impl Ui {
         }
         p.modo.set_selected(u32::from(m.modo.byte()));
         p.repeticoes.set_value(f64::from(m.repeticoes.max(1)));
+    }
+
+    /// Abre o diálogo de digitar; os passos captados entram no fim da lista, sem gravar nada.
+    pub fn digitar_passos(self: &Rc<Self>) -> Rc<crate::captura::Dialogo> {
+        let dialogo = self.abrir_captura(|ui, acoes| {
+            let passos = passos_de(&acoes);
+            let quantos = passos.len();
+            for passo in passos {
+                PainelMacros::acrescentar(ui, passo);
+            }
+            ui.macros.captura.borrow_mut().take();
+            ui.avisar(&format!(
+                "{quantos} {} na lista. Confira e clique em Gravar macro",
+                if quantos == 1 { "passo entrou" } else { "passos entraram" }
+            ));
+        });
+        *self.macros.captura.borrow_mut() = Some(dialogo.clone());
+        dialogo
     }
 
     /// Grava no teclado a macro montada na tela, ou apaga a escolhida.

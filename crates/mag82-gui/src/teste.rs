@@ -544,6 +544,41 @@ async fn exercitar(ui: &Rc<Ui>, prefixo: &str) {
     // ----- macros: monta, grava, liga a uma tecla, confere e desfaz -----
     if ui.d.borrow().as_ref().unwrap().macros.is_some() {
         let antes = ui.d.borrow().as_ref().unwrap().macros.as_ref().unwrap()[0].clone();
+        // digitar os passos: Ctrl + C, uma pausa e V; entram na lista sem gravar nada
+        ui.pilha.set_visible_child_name("macros");
+        let passos0 = ui.macros.quantos_passos();
+        let captura = ui.digitar_passos();
+        // com MAG82_TESTE_TECLAS, espera alguém (ou o xdotool) digitar no diálogo e mostra o que chegou
+        if std::env::var_os("MAG82_TESTE_TECLAS").is_some() {
+            pausa(800).await;
+            println!("aguardando teclas de verdade");
+            pausa(8000).await;
+            captura.guardar_pausas(false);
+            let texto = mag82::Macro { valida: true, acoes: captura.acoes(), ..Default::default() }.em_texto();
+            println!("teclas de verdade: \"{texto}\" diálogo aberto={}", ui.janela.visible_dialog().is_some());
+            captura.guardar_pausas(true);
+            captura.recomecar();
+        }
+        for (codigo, pressiona, instante) in
+            [(0xE0, true, 0), (0x06, true, 90), (0x06, false, 150), (0xE0, false, 210), (0x19, true, 900), (0x19, false, 960)]
+        {
+            ui.captura_funcao(&captura, codigo, pressiona, instante);
+        }
+        pausa(400).await;
+        fotografar(ui, prefixo, "macros", "macros-digitar").await;
+        let com_pausas = mag82::Macro { valida: true, acoes: captura.acoes(), ..Default::default() }.em_texto();
+        captura.guardar_pausas(false);
+        let sem_pausas = mag82::Macro { valida: true, acoes: captura.acoes(), ..Default::default() }.em_texto();
+        println!("digitar passos: com pausas=\"{com_pausas}\" sem pausas=\"{sem_pausas}\" prévia=\"{}\"", captura.previa());
+        captura.usar();
+        pausa(400).await;
+        println!(
+            "digitar passos: entraram na lista={} diálogo fechado={} nada gravado={}",
+            ui.macros.quantos_passos() - passos0,
+            ui.macros.captura.borrow().is_none(),
+            ui.d.borrow().as_ref().unwrap().macros.as_ref().unwrap()[0] == antes
+        );
+        fotografar(ui, prefixo, "macros", "macros-digitados").await;
         let acoes = mag82::Macro::acoes_de_texto("+lctrl c -lctrl 50ms v").unwrap();
         let nova = mag82::Macro { valida: true, modo: mag82::ModoMacro::TODOS[1], repeticoes: 3, acoes };
         ui.montar_macro(&nova);
